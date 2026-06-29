@@ -1,0 +1,85 @@
+[
+  {
+    "metadataOutputVersion" : "3.0",
+    "storagePrecision" : "Float16",
+    "outputSchema" : [
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float32",
+        "formattedType" : "MultiArray (Float32)",
+        "shortDescription" : "",
+        "shape" : "[]",
+        "name" : "var_1721",
+        "type" : "MultiArray"
+      }
+    ],
+    "modelParameters" : [
+
+    ],
+    "specificationVersion" : 6,
+    "mlProgramOperationTypeHistogram" : {
+      "Transpose" : 111,
+      "Range1d" : 1,
+      "Gather" : 25,
+      "Sub" : 1,
+      "Reshape" : 96,
+      "Cast" : 3,
+      "Matmul" : 48,
+      "LayerNorm" : 57,
+      "Select" : 1,
+      "Concat" : 25,
+      "Add" : 73,
+      "GreaterEqual" : 1,
+      "Tile" : 1,
+      "Softmax" : 24,
+      "RealDiv" : 1,
+      "Shape" : 26,
+      "Linear" : 146,
+      "ExpandDims" : 4,
+      "Conv" : 8,
+      "Equal" : 1,
+      "SliceByIndex" : 1,
+      "Mul" : 25,
+      "Gelu" : 32
+    },
+    "computePrecision" : "Mixed (Float16, Float32, Int32)",
+    "isUpdatable" : "0",
+    "stateSchema" : [
+
+    ],
+    "availability" : {
+      "macOS" : "12.0",
+      "tvOS" : "15.0",
+      "visionOS" : "1.0",
+      "watchOS" : "8.0",
+      "iOS" : "15.0",
+      "macCatalyst" : "15.0"
+    },
+    "modelType" : {
+      "name" : "MLModelType_mlProgram"
+    },
+    "userDefinedMetadata" : {
+      "com.github.apple.coremltools.conversion_date" : "2026-06-25",
+      "com.github.apple.coremltools.source" : "torch==2.12.1",
+      "com.github.apple.coremltools.version" : "9.0",
+      "com.github.apple.coremltools.source_dialect" : "TorchScript"
+    },
+    "inputSchema" : [
+      {
+        "dataType" : "Float32",
+        "hasShapeFlexibility" : "1",
+        "isOptional" : "0",
+        "shapeFlexibility" : "1 × 16000...480000",
+        "shapeRange" : "[[1, 1], [16000, 480000]]",
+        "formattedType" : "MultiArray (Float32 1 × 16000)",
+        "type" : "MultiArray",
+        "shape" : "[1, 16000]",
+        "name" : "audio",
+        "shortDescription" : ""
+      }
+    ],
+    "generatedClassName" : "Wav2Vec2Phonetic",
+    "method" : "predict"
+  }
+]

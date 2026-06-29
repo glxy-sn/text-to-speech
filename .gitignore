@@ -10,6 +10,7 @@ __pycache__/
 *$py.class
 *.egg-info/
 .ipynb_checkpoints/
+test/
 
 # Virtual environments
 .audioenv/
@@ -20,12 +21,15 @@ env/
 # Models (large; download/restore separately)
 Qwen3-TTS-12Hz-1.7B-Base/
 Qwen3-TTS-Tokenizer-12Hz/
+*.mlpackage
 
 # Datasets & generated data
 dataset_dropbox/
 preprocessed_data/
 processed/
 tts_output/
+docs/
+
 
 # Audio files
 *.wav
@@ -37,5 +41,9 @@ tts_output/
 # Misc
 *.log
 .env
+.venv
+.idea
+*.bin
 
 .claude/
+
