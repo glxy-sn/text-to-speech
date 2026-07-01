@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		45D3A3D72FF3B5AF0048FEA3 /* Qwen3TTS in Frameworks */ = {isa = PBXBuildFile; productRef = 45D3A3D62FF3B5AF0048FEA3 /* Qwen3TTS */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		45FEE04F2FEE160000588E18 /* tts_coach.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tts_coach.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,16 +27,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				45D3A3D72FF3B5AF0048FEA3 /* Qwen3TTS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		45D3A3C42FF364CE0048FEA3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		45FEE0462FEE160000588E18 = {
 			isa = PBXGroup;
 			children = (
 				45FEE0512FEE160000588E18 /* tts_coach */,
+				45D3A3C42FF364CE0048FEA3 /* Frameworks */,
 				45FEE0502FEE160000588E18 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -65,6 +78,7 @@
 			);
 			name = tts_coach;
 			packageProductDependencies = (
+				45D3A3D62FF3B5AF0048FEA3 /* Qwen3TTS */,
 			);
 			productName = tts_coach;
 			productReference = 45FEE04F2FEE160000588E18 /* tts_coach.app */;
@@ -94,6 +108,9 @@
 			);
 			mainGroup = 45FEE0462FEE160000588E18;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				45D3A3D52FF3B5AF0048FEA3 /* XCLocalSwiftPackageReference "../swift-qwen3-tts" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 45FEE0502FEE160000588E18 /* Products */;
 			projectDirPath = "";
@@ -255,11 +272,24 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QW8PFJL6C3;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Need to access to download or upload file";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need to access your mic to record your voice";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -287,11 +317,24 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = QW8PFJL6C3;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Need to access to download or upload file";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need to access your mic to record your voice";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -331,6 +374,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		45D3A3D52FF3B5AF0048FEA3 /* XCLocalSwiftPackageReference "../swift-qwen3-tts" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../swift-qwen3-tts";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		45D3A3D62FF3B5AF0048FEA3 /* Qwen3TTS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Qwen3TTS;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 45FEE0472FEE160000588E18 /* Project object */;
 }

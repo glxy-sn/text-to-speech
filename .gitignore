@@ -1,0 +1,15 @@
+# Python environment
+venv/
+.env/
+.envrc
+
+# ML model
+Wav2Vec2Phonetic.mlpackage/
+Wav2Vec2Phonetic.mlmodelc/
+*.mlmodelc
+tts_coach/Models/Wav2Vec2Phonetic.mlpackage/
+
+# macOS / Xcode
+.DS_Store
+DerivedData/
+build/
