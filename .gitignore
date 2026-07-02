@@ -15,6 +15,7 @@ test/
 # Virtual environments
 .audioenv/
 .venv/
+.venv_cosyvoice/
 venv/
 env/
 

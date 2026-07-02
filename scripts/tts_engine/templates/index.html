@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CosyVoice Testing Sandbox</title>
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons for elegant iconography -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="background-blob blob-1"></div>
+    <div class="background-blob blob-2"></div>
+    
+    <main class="glass-container">
+        <header class="app-header">
+            <div class="header-title">
+                <i class="ph ph-waveform"></i>
+                <h1>CosyVoice Sandbox</h1>
+            </div>
+            <p class="subtitle">Zero-shot cross-lingual voice cloning</p>
+        </header>
+
+        <div class="content-grid">
+            <!-- Left Column: Input Settings -->
+            <section class="panel input-panel">
+                <h2><i class="ph ph-sliders"></i> Configuration</h2>
+                
+                <form id="ttsForm">
+                    <!-- Reference Audio Selection -->
+                    <div class="form-group">
+                        <label>Reference Audio</label>
+                        
+                        <div class="tabs">
+                            <button type="button" class="tab-btn active" data-target="prebuilt-tab">Saved Voices</button>
+                            <button type="button" class="tab-btn" data-target="upload-tab">Upload</button>
+                            <button type="button" class="tab-btn" data-target="record-tab">Record</button>
+                        </div>
+                        
+                        <div class="tab-content active" id="prebuilt-tab">
+                            <select id="voice_file" name="voice_file" class="premium-select">
+                                {% for voice in voices %}
+                                <option value="{{ voice }}">{{ voice }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="tab-content" id="upload-tab">
+                            <div class="file-drop-area">
+                                <i class="ph ph-upload-simple"></i>
+                                <span class="file-msg">Choose a .wav file or drag it here</span>
+                                <input type="file" id="reference_audio" name="reference_audio" accept="audio/wav" class="file-input">
+                            </div>
+                        </div>
+                        
+                        <div class="tab-content" id="record-tab">
+                            <div class="record-area">
+                                <button type="button" id="recordBtn" class="record-btn">
+                                    <i class="ph-fill ph-microphone"></i>
+                                    <span>Start Recording</span>
+                                </button>
+                                <span id="recordingStatus" class="recording-status">Ready</span>
+                                <audio id="recordedAudioPreview" controls class="hidden custom-audio"></audio>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Target Text -->
+                    <div class="form-group">
+                        <label for="target_text">Target Text (What the model will say)</label>
+                        <textarea id="target_text" name="target_text" rows="4" class="premium-input" placeholder="Enter the text you want the voice to speak..."></textarea>
+                    </div>
+
+                    <!-- Generation Mode -->
+                    <div class="form-group">
+                        <label>Generation Mode</label>
+                        <div class="mode-selector" style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="radio" name="mode" value="zero_shot" checked>
+                                <span>Zero-Shot (Strict alignment, best for English)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="radio" name="mode" value="cross_lingual">
+                                <span>Cross-Lingual (Timbre only, best for other languages)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Target Language Tag -->
+                    <div class="form-group">
+                        <label for="language">Target Language</label>
+                        <select id="language" name="language" class="premium-input">
+                            <option value="auto">Auto-Detect</option>
+                            <option value="en">English</option>
+                            <option value="zh">Mandarin</option>
+                            <option value="jp">Japanese</option>
+                            <option value="yue">Cantonese</option>
+                            <option value="ko">Korean</option>
+                        </select>
+                    </div>
+
+                    <!-- Parameters -->
+                    <div class="form-group">
+                        <div class="label-with-value">
+                            <label for="speed">Speaking Speed (Normalization enforced)</label>
+                            <span id="speed_value" class="value-display">1.0x</span>
+                        </div>
+                        <input type="range" id="speed" name="speed" min="0.5" max="2.0" step="0.1" value="1.0" oninput="document.getElementById('speed_value').textContent = this.value + 'x'">
+                    </div>
+
+                    <div class="form-group">
+                        <div class="label-with-value">
+                            <label for="seed">Random Seed (For deterministic output)</label>
+                        </div>
+                        <input type="number" id="seed" name="seed" value="0" class="premium-input" style="width: 100%;">
+                    </div>
+
+                    <button type="submit" id="generateBtn" class="primary-btn">
+                        <i class="ph ph-sparkle"></i>
+                        <span>Generate Voice</span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Right Column: Output -->
+            <section class="panel output-panel">
+                <h2><i class="ph ph-speaker-high"></i> Output</h2>
+                
+                <div id="loadingState" class="state-container hidden">
+                    <div class="loader"></div>
+                    <p>Synthesizing audio... <br><span class="text-xs text-muted">This may take 5-10 seconds</span></p>
+                </div>
+                
+                <div id="resultState" class="state-container empty">
+                    <div class="empty-state">
+                        <i class="ph ph-waveform empty-icon"></i>
+                        <p>Generate audio to see results here</p>
+                    </div>
+                    
+                    <div class="result-content hidden">
+                        <div class="audio-player-wrapper">
+                            <audio id="outputAudio" controls class="custom-audio w-full"></audio>
+                        </div>
+                        <div class="action-buttons">
+                            <a id="downloadBtn" href="#" download="generated.wav" class="secondary-btn">
+                                <i class="ph ph-download-simple"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="errorState" class="state-container error-state hidden">
+                    <i class="ph-fill ph-warning-circle"></i>
+                    <p id="errorMessage">An error occurred.</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // --- Tab Switching Logic ---
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.target).classList.add('active');
+            });
+        });
+
+        // --- Speed Slider Logic ---
+        const speedSlider = document.getElementById('speed');
+        const speedValue = document.getElementById('speedValue');
+        speedSlider.addEventListener('input', (e) => {
+            speedValue.textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+        });
+
+        // --- File Upload Logic ---
+        const fileInput = document.getElementById('reference_audio');
+        const fileMsg = document.querySelector('.file-msg');
+        fileInput.addEventListener('change', (e) => {
+            if(e.target.files.length > 0) {
+                fileMsg.textContent = e.target.files[0].name;
+                fileMsg.classList.add('has-file');
+            } else {
+                fileMsg.textContent = "Choose a .wav file or drag it here";
+                fileMsg.classList.remove('has-file');
+            }
+        });
+
+        // --- Audio Recording Logic ---
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordedBlob = null;
+        
+        const recordBtn = document.getElementById('recordBtn');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const recordedAudioPreview = document.getElementById('recordedAudioPreview');
+
+        recordBtn.addEventListener('click', async () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                // Stop recording
+                mediaRecorder.stop();
+                recordBtn.classList.remove('recording');
+                recordBtn.innerHTML = '<i class="ph-fill ph-microphone"></i><span>Start Recording</span>';
+                recordingStatus.textContent = 'Recording finished';
+                recordingStatus.classList.remove('pulse-text');
+            } else {
+                // Start recording
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = e => {
+                        if (e.data.size > 0) audioChunks.push(e.data);
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const audioUrl = URL.createObjectURL(recordedBlob);
+                        recordedAudioPreview.src = audioUrl;
+                        recordedAudioPreview.classList.remove('hidden');
+                    };
+                    
+                    mediaRecorder.start();
+                    recordBtn.classList.add('recording');
+                    recordBtn.innerHTML = '<i class="ph-fill ph-stop"></i><span>Stop Recording</span>';
+                    recordingStatus.textContent = 'Recording...';
+                    recordingStatus.classList.add('pulse-text');
+                    recordedAudioPreview.classList.add('hidden');
+                } catch (err) {
+                    alert('Error accessing microphone: ' + err);
+                }
+            }
+        });
+
+        // --- Form Submission Logic ---
+        const form = document.getElementById('ttsForm');
+        const generateBtn = document.getElementById('generateBtn');
+        const loadingState = document.getElementById('loadingState');
+        const resultState = document.getElementById('resultState');
+        const emptyState = document.querySelector('.empty-state');
+        const resultContent = document.querySelector('.result-content');
+        const errorState = document.getElementById('errorState');
+        const outputAudio = document.getElementById('outputAudio');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // UI State updates
+            generateBtn.disabled = true;
+            generateBtn.classList.add('loading');
+            loadingState.classList.remove('hidden');
+            resultState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            
+            const formData = new FormData(form);
+            
+            // Determine active tab and clean up formData accordingly
+            const activeTabId = document.querySelector('.tab-btn.active').dataset.target;
+            
+            if (activeTabId === 'prebuilt-tab') {
+                formData.delete('reference_audio');
+            } else if (activeTabId === 'upload-tab') {
+                formData.delete('voice_file');
+            } else if (activeTabId === 'record-tab') {
+                formData.delete('voice_file');
+                formData.delete('reference_audio');
+                if (recordedBlob) {
+                    formData.append('reference_audio', recordedBlob, 'recording.webm');
+                } else {
+                    showError("Please record an audio first.");
+                    resetUI();
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Server error');
+                }
+                
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                
+                outputAudio.src = url;
+                downloadBtn.href = url;
+                
+                loadingState.classList.add('hidden');
+                resultState.classList.remove('hidden', 'empty');
+                emptyState.classList.add('hidden');
+                resultContent.classList.remove('hidden');
+                
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                resetUI();
+            }
+        });
+        
+        function showError(msg) {
+            document.getElementById('errorMessage').textContent = msg;
+            errorState.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            resultState.classList.add('hidden');
+        }
+        
+        function resetUI() {
+            generateBtn.disabled = false;
+            generateBtn.classList.remove('loading');
+        }
+    </script>
+</body>
+</html>

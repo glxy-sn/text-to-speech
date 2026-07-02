@@ -12,8 +12,10 @@ private let kModelRepo = "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
 // MARK: - TTSService
 
 /// A native Swift actor that manages the Qwen3-TTS model.
-actor TTSService {
-    static let shared = TTSService()
+public actor QwenTTSService: TTSServiceProtocol {
+    public static let shared = QwenTTSService()
+    
+    public var isReady: Bool { model != nil }
     
     private let kReferenceTranscript = """
     When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. \
@@ -33,13 +35,55 @@ actor TTSService {
 
     // MARK: - Public API
     
-    /// Preloads the model into memory.
-    func preloadModel() async throws {
+    // MARK: - TTSServiceProtocol Implementation
+    
+    public func initialize() async throws {
         _ = try await loadModelIfNeeded()
     }
+    
+    public func synthesize(
+        text: String,
+        onAudioChunk: (@Sendable ([Float]) -> Void)? = nil
+    ) async throws -> [Float] {
+        let model = try await loadModelIfNeeded()
+        
+        var allFloats = [Float]()
+        let params = GenerateParameters(
+            maxTokens: 2048,
+            temperature: 0.7,
+            topP: 0.9,
+            repetitionPenalty: 1.1,
+            repetitionContextSize: 20
+        )
+        
+        for try await event in model.generateStream(
+            text: text,
+            voice: nil,
+            refAudio: nil,
+            refText: nil,
+            language: nil,
+            generationParameters: params
+        ) {
+            if case .audio(let chunk) = event {
+                let floatArray = chunk.asArray(Float.self)
+                allFloats.append(contentsOf: floatArray)
+                onAudioChunk?(floatArray)
+            }
+        }
+        
+        return allFloats
+    }
 
+    // MARK: - Public API
+    
     /// Generate speech audio using text-prompted voice design and streaming.
-    func generateAudio(text: String, referenceAudioURL: URL?) async throws -> URL {
+    public func generateAudio(
+        text: String,
+        referenceAudioURL: URL?,
+        isMultiLanguage: Bool = false,
+        language: String = "Auto",
+        speed: Float = 1.0
+    ) async throws -> (URL, Double, Double) {
         let model = try await loadModelIfNeeded()
         
         await currentPlayer?.stop()
@@ -64,15 +108,23 @@ actor TTSService {
             refText = kReferenceTranscript
         }
         
+        let startTime = CFAbsoluteTimeGetCurrent()
+        var firstChunkTime: CFAbsoluteTime? = nil
+
+        let targetLanguage = language == "Auto" ? nil : language
+        
         for try await event in model.generateStream(
             text: text,
             voice: nil,
             refAudio: refAudioArray,
             refText: refText,
-            language: nil,
+            language: targetLanguage,
             generationParameters: params
         ) {
             if case .audio(let chunk) = event {
+                if firstChunkTime == nil {
+                    firstChunkTime = CFAbsoluteTimeGetCurrent()
+                }
                 // Ensure chunk is contiguous float32 array
                 let floatArray = chunk.asArray(Float.self)
                 allFloats.append(contentsOf: floatArray)
@@ -80,15 +132,20 @@ actor TTSService {
             }
         }
         
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let ttfa = (firstChunkTime ?? endTime) - startTime
+        let audioDuration = Double(allFloats.count) / Double(model.sampleRate)
+        let rtf = (endTime - startTime) / max(audioDuration, 0.001)
+        
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("native_baseline.wav")
 
         try AudioUtils.writeWavFile(samples: allFloats, sampleRate: Double(model.sampleRate), fileURL: outputURL)
 
-        return outputURL
+        return (outputURL, ttfa, rtf)
     }
     
-    func stopAudio() async {
+    public func stopAudio() async {
         await currentPlayer?.stop()
     }
 

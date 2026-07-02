@@ -36,6 +36,36 @@ struct ContentView: View {
                         .lineLimit(3...6)
                 }
                 
+                Picker("TTS Engine", selection: $viewModel.selectedEngine) {
+                    ForEach(TTSEngine.allCases) { engine in
+                        Text(engine.rawValue).tag(engine)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.top, Catalyst.Spacing.sm)
+                
+                if viewModel.selectedEngine == .cosyvoice {
+                    CatalystFormGroup(label: "Model Parameters") {
+                        VStack(alignment: .leading, spacing: Catalyst.Spacing.md) {
+                            Toggle("Multi-Language Mode (Cross-Lingual)", isOn: $viewModel.isMultiLanguage)
+                                .toggleStyle(SwitchToggleStyle())
+                            
+                            Picker("Target Language", selection: $viewModel.selectedLanguage) {
+                                ForEach(viewModel.availableLanguages, id: \.self) { lang in
+                                    Text(lang).tag(lang)
+                                }
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Speed (x\(String(format: "%.2f", viewModel.speed)))")
+                                    .font(Catalyst.Typography.caption1)
+                                    .foregroundColor(Catalyst.Text.secondary(colorScheme))
+                                Slider(value: $viewModel.speed, in: 0.5...2.0, step: 0.1)
+                            }
+                        }
+                    }
+                }
+                
                 HStack {
                     CatalystButton("Generate Baseline", role: .primary) {
                         viewModel.generateBaseline()
@@ -58,6 +88,17 @@ struct ContentView: View {
                         ProgressView()
                             .scaleEffect(0.8)
                             .padding(.trailing, 4)
+                    }
+                    
+                    if let ttfa = viewModel.generationTTFA, let rtf = viewModel.generationRTF {
+                        VStack(alignment: .trailing) {
+                            Text(String(format: "TTFA: %.2fs", ttfa))
+                                .font(Catalyst.Typography.caption1.monospacedDigit())
+                            Text(String(format: "RTF: %.2fx", rtf))
+                                .font(Catalyst.Typography.caption1.monospacedDigit())
+                        }
+                        .foregroundColor(Catalyst.Text.secondary(colorScheme))
+                        .padding(.horizontal, Catalyst.Spacing.sm)
                     }
                     
                     if !viewModel.statusMessage.isEmpty {

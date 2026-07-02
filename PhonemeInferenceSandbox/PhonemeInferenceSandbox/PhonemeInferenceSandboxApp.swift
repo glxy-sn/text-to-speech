@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Foundation
 
 @main
 struct PhonemeInferenceSandboxApp: App {
@@ -10,17 +11,5 @@ struct PhonemeInferenceSandboxApp: App {
             ContentView()
                 .environment(\.catalystAccent, accent)
         }
-        .modelContainer(for: VoiceProfile.self)
-    }
-}
-
-@Model
-class VoiceProfile {
-    @Attribute(.unique) var id: String
-    var name: String
-    
-    init(id: String, name: String) {
-        self.id = id
-        self.name = name
     }
 }

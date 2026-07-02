@@ -2,10 +2,19 @@ import Foundation
 import CoreML
 import Combine
 import AVFoundation
+import MLXAudioCore
+import MLXAudioTTS
+
+public enum TTSEngine: String, CaseIterable, Identifiable {
+    case qwen = "Qwen3"
+    case cosyvoice = "CosyVoice3"
+    public var id: String { self.rawValue }
+}
 
 @MainActor
 class PhonemeInferenceViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate {
-    @Published var targetScript: String = ""
+    @Published var targetScript: String = "The vibrant bands of red, orange, yellow, green, blue, and violet curve gracefully across the sky..."
+    @Published var selectedEngine: TTSEngine = .qwen
     @Published var extractedPhonemes: [String] = []
     @Published var userRawPhonemes: [String] = []
     @Published var phoneScores: [PhoneScore] = []
@@ -17,9 +26,20 @@ class PhonemeInferenceViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
     @Published var isPlaying: Bool = false
     @Published var generatedAudioURL: URL? = nil
     
+    // Performance Metrics
+    @Published var generationTTFA: Double? = nil
+    @Published var generationRTF: Double? = nil
+    
     // Voice Parameters
     @Published var selectedCloneVoice: String = "savio"
     @Published var availableVoices: [String] = []
+    
+    // Generation Parameters
+    @Published var isMultiLanguage: Bool = false
+    @Published var selectedLanguage: String = "Auto"
+    @Published var speed: Float = 1.0
+    
+    let availableLanguages = ["Auto", "English", "Mandarin", "Japanese", "Korean", "Cantonese"]
     
     private var engine: AudioInferenceEngine?
     private var scorer: AlignmentScorerEngine
@@ -47,10 +67,18 @@ class PhonemeInferenceViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
         guard self.engine == nil else { return }
         
         self.isModelLoading = true
-        self.statusMessage = "Loading TTS Model (Qwen3)..."
+        self.statusMessage = "Loading TTS Models..."
         
         do {
-            try await TTSService.shared.preloadModel()
+            try await QwenTTSService.shared.initialize()
+            
+            // Check CosyVoice connection silently on boot
+            do {
+                try await CosyVoiceTTSService.shared.initialize()
+            } catch {
+                print("CosyVoice offline check: \(error.localizedDescription)")
+            }
+            
             self.statusMessage = "Loading Evaluation Model (Wav2Vec2)..."
             
             let loadedEngine: AudioInferenceEngine
@@ -80,6 +108,8 @@ class PhonemeInferenceViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
         self.extractedPhonemes = []
         self.userRawPhonemes = []
         self.phoneScores = []
+        self.generationTTFA = nil
+        self.generationRTF = nil
         self.statusMessage = "Configuration changed. Generate baseline again."
     }
     
@@ -98,6 +128,8 @@ class PhonemeInferenceViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
         self.extractedPhonemes = []
         self.userRawPhonemes = []
         self.phoneScores = []
+        self.generationTTFA = nil
+        self.generationRTF = nil
         self.statusMessage = "Streaming TTS Baseline..."
         self.isPlaying = true
         
@@ -110,10 +142,36 @@ class PhonemeInferenceViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
                 }
                 
                 // Native in-process synthesis with live streaming
-                let resultURL = try await TTSService.shared.generateAudio(
-                    text: targetScript,
-                    referenceAudioURL: cloneURL
-                )
+                let resultURL: URL
+                
+                switch selectedEngine {
+                case .qwen:
+                    let (url, ttfa, rtf) = try await QwenTTSService.shared.generateAudio(
+                        text: targetScript,
+                        referenceAudioURL: cloneURL,
+                        isMultiLanguage: isMultiLanguage,
+                        language: selectedLanguage,
+                        speed: speed
+                    )
+                    resultURL = url
+                    self.generationTTFA = ttfa
+                    self.generationRTF = rtf
+                case .cosyvoice:
+                    if await !CosyVoiceTTSService.shared.isReady {
+                        try await CosyVoiceTTSService.shared.initialize()
+                    }
+                    let (url, ttfa, rtf) = try await CosyVoiceTTSService.shared.generateAudio(
+                        text: targetScript,
+                        referenceAudioURL: cloneURL,
+                        isMultiLanguage: isMultiLanguage,
+                        language: selectedLanguage,
+                        speed: speed
+                    )
+                    
+                    self.generationTTFA = ttfa
+                    self.generationRTF = rtf
+                    resultURL = url
+                }
                 
                 self.generatedAudioURL = resultURL
                 
@@ -200,7 +258,14 @@ class PhonemeInferenceViewModel: NSObject, ObservableObject, AVAudioPlayerDelega
     
     func stopPlayback() {
         if isProcessing {
-            Task { await TTSService.shared.stopAudio() }
+            Task {
+                switch selectedEngine {
+                case .qwen:
+                    await QwenTTSService.shared.stopAudio()
+                case .cosyvoice:
+                    await CosyVoiceTTSService.shared.stopAudio()
+                }
+            }
         }
         audioPlayer?.stop()
         isPlaying = false
