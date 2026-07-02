@@ -23,6 +23,7 @@ env/
 Qwen3-TTS-12Hz-1.7B-Base/
 Qwen3-TTS-Tokenizer-12Hz/
 *.mlpackage
+scripts/tts_engine/CosyVoice
 
 # Datasets & generated data
 dataset_dropbox/
