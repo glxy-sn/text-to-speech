@@ -15,12 +15,12 @@ struct AudioInferenceEngine: @unchecked Sendable {
         return AudioInferenceEngine(model: model)
     }
     
-    func extractTargetPhonemes(from ttsBuffer: MLMultiArray) throws -> [String] {
+    func extractTargetPhonemes(from ttsBuffer: MLMultiArray) throws -> [(symbol: String, frame: Int)] {
         let inputFeature = Wav2Vec2Input(audio: ttsBuffer)
         let output = try wav2vec2Model.prediction(from: inputFeature)
         let featureName = output.featureNames.first!
         let logits = output.featureValue(for: featureName)!.multiArrayValue!
-        return runGreedyDecodeWithFrames(logits: logits).map { $0.symbol }
+        return runGreedyDecodeWithFrames(logits: logits)
     }
     
     func extractUserLogits(from userBuffer: MLMultiArray) throws -> MLMultiArray {

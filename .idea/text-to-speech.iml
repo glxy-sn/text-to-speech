@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/.venv_tts/lib/python3.11/site-packages" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/scripts/tts_engine/CosyVoice" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/cosy_sandbox/.venv" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.14 (text-to-speech)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

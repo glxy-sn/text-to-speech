@@ -8,6 +8,13 @@ struct PhoneScore: Identifiable {
     let frames: Int
 }
 
+struct WordScore: Identifiable {
+    let id = UUID()
+    let word: String
+    let phoneScores: [PhoneScore]
+    let averageScore: Float
+}
+
 class AlignmentScorerEngine {
     private let blankIndex = 0
     
@@ -102,6 +109,10 @@ class AlignmentScorerEngine {
             var sumLogP: Float = 0.0
             
             for t in 0..<totalFrames {
+                if alpha[t][s] == -Float.greatestFiniteMagnitude || beta[t][s] == -Float.greatestFiniteMagnitude || pTotal == -Float.greatestFiniteMagnitude {
+                    continue
+                }
+                
                 let gamma = alpha[t][s] + beta[t][s] - pTotal
                 // Prevent NaN if gamma is incredibly small
                 if gamma > -30.0 {

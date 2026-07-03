@@ -50,6 +50,11 @@ class AudioService {
         var stdDev: Float = 0.0
         vDSP_normalize(channelData, 1, ptr, 1, &mean, &stdDev, vDSP_Length(frameLength))
         
+        if stdDev < 1e-7 || stdDev.isNaN {
+            var zero: Float = 0.0
+            vDSP_vfill(&zero, ptr, 1, vDSP_Length(frameLength))
+        }
+        
         return multiArray
     }
 }
