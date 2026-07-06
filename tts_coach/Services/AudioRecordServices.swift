@@ -205,9 +205,9 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         recorder.updateMeters()
         let power = recorder.averagePower(forChannel: 0)
         
-        // Convert -60...0 dB to 0.0...1.0
-        let minDb: Float = -60.0
-        let normalized = max(0.0, (power - minDb) / (-minDb))
+        // Convert -45...0 dB to 0.1...1.0 for a more dynamic visual waveform
+        let minDb: Float = -45.0
+        let normalized = max(0.1, min(1.0, (power - minDb) / (-minDb)))
         
         audioLevels.removeFirst()
         audioLevels.append(normalized)

@@ -23,23 +23,25 @@ final class AudioPlayerService: NSObject, ObservableObject {
     private var player: AVAudioPlayer?
     @Published private(set) var currentURL: URL?
 
-    private var stopTimer: Timer?
     private var meterTimer: Timer?
+    private var segmentEndTime: TimeInterval?
 
     /// Plays `url`. If this exact file is already loaded, toggles
     /// pause/resume instead of restarting from scratch — lets a single
     /// "play" button double as play/pause without the View needing to
     /// track playback state itself.
     func play(url: URL) {
-        stopTimer?.invalidate()
-        stopTimer = nil
-        
         if currentURL == url, let player {
             if player.isPlaying {
                 player.pause()
                 stopMetering()
                 isPlaying = false
             } else {
+                // If we last played a segment, or we are at the end, reset to start
+                if segmentEndTime != nil || player.currentTime >= (player.duration - 0.1) {
+                    player.currentTime = 0
+                }
+                segmentEndTime = nil
                 player.play()
                 startMetering()
                 isPlaying = true
@@ -48,12 +50,14 @@ final class AudioPlayerService: NSObject, ObservableObject {
         }
 
         do {
-            let player = try AVAudioPlayer(contentsOf: url)
-            player.delegate = self
-            player.isMeteringEnabled = true
-            player.play()
-            self.player = player
+            player?.stop()
+            let newPlayer = try AVAudioPlayer(contentsOf: url)
+            newPlayer.delegate = self
+            newPlayer.isMeteringEnabled = true
+            newPlayer.play()
+            self.player = newPlayer
             self.currentURL = url
+            self.segmentEndTime = nil
             self.isPlaying = true
             startMetering()
         } catch {
@@ -63,34 +67,25 @@ final class AudioPlayerService: NSObject, ObservableObject {
 
     /// Plays a specific time segment of the audio file.
     func playSegment(url: URL, startTime: TimeInterval, endTime: TimeInterval) {
-        stopTimer?.invalidate()
-        stopTimer = nil
+        player?.stop()
 
         do {
-            let player = try AVAudioPlayer(contentsOf: url)
-            player.delegate = self
-            player.isMeteringEnabled = true
-            player.currentTime = max(0, startTime)
-            player.play()
-            self.player = player
+            let newPlayer = try AVAudioPlayer(contentsOf: url)
+            newPlayer.delegate = self
+            newPlayer.isMeteringEnabled = true
+            newPlayer.currentTime = max(0, startTime)
+            newPlayer.play()
+            self.player = newPlayer
             self.currentURL = url
+            self.segmentEndTime = endTime
             self.isPlaying = true
             startMetering()
-
-            let duration = endTime - startTime
-            if duration > 0 {
-                stopTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
-                    self?.stop()
-                }
-            }
         } catch {
             print("AudioPlayerService: failed to play segment of \(url) — \(error)")
         }
     }
 
     func stop() {
-        stopTimer?.invalidate()
-        stopTimer = nil
         stopMetering()
         player?.stop()
         isPlaying = false
@@ -113,9 +108,17 @@ final class AudioPlayerService: NSObject, ObservableObject {
 
     private func updateMeters() {
         guard let player = player, player.isPlaying else { return }
+        
+        // Accurate segment boundary check
+        if let segmentEnd = segmentEndTime, player.currentTime >= segmentEnd {
+            self.stop()
+            return
+        }
+        
         player.updateMeters()
         let power = player.averagePower(forChannel: 0)
-        let level = max(0.1, min(1.0, (power + 80.0) / 80.0))
+        let minDb: Float = -45.0
+        let level = max(0.1, min(1.0, (power - minDb) / (-minDb)))
         DispatchQueue.main.async {
             self.currentLevels.removeFirst()
             self.currentLevels.append(level)

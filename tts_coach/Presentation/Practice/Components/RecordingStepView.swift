@@ -27,6 +27,8 @@ struct PracticeRecordingStepView: View {
 
     @State private var userScrolled = false
     @State private var elapsedSeconds: Int = 0
+    @State private var activeWordIndex: Int = 0
+    @State private var hasFinished = false
 
     private var teleprompterData: [TeleprompterSentence] {
         var text = practiceText
@@ -49,14 +51,32 @@ struct PracticeRecordingStepView: View {
         return data
     }
     
-    private func activeWordIndex(for elapsed: Int) -> Int {
+    private func updateActiveWordIndex() {
         let wordsPerSecond = 2.16
-        let fallbackIndex = Int(Double(elapsed) * wordsPerSecond)
-        
+        let fallbackIndex = Int(Double(elapsedSeconds) * wordsPerSecond)
         let spokenWords = liveTranscription.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
         
-        // Use live transcription word count, fallback to timer if live is lagging
-        return max(fallbackIndex, spokenWords.count)
+        let proposedIndex = max(fallbackIndex, spokenWords.count)
+        var newIndex = activeWordIndex
+        
+        if proposedIndex > activeWordIndex {
+            // Cap forward jump to +3 words at a time to prevent jarring skips
+            let jump = min(proposedIndex - activeWordIndex, 3)
+            newIndex = activeWordIndex + jump
+        }
+        
+        let totalWords = teleprompterData.last.map { $0.startWordIndex + $0.words.count } ?? 0
+        newIndex = min(newIndex, max(0, totalWords - 1))
+        
+        if newIndex != activeWordIndex {
+            activeWordIndex = newIndex
+        }
+        
+        // Auto-stop when reaching the end
+        if newIndex >= totalWords - 1 && totalWords > 0 && !hasFinished {
+            hasFinished = true
+            onFinish()
+        }
     }
 
     var body: some View {
@@ -70,7 +90,7 @@ struct PracticeRecordingStepView: View {
 
             TeleprompterDisplayView(
                 sentences: teleprompterData,
-                activeWordIndex: activeWordIndex(for: elapsedSeconds),
+                activeWordIndex: activeWordIndex,
                 shouldAutoScroll: !userScrolled
             )
             .frame(height: 200)
@@ -87,6 +107,10 @@ struct PracticeRecordingStepView: View {
         }
         .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { date in
             elapsedSeconds = min(maxDurationSeconds, max(0, Int(date.timeIntervalSince(startedAt))))
+            updateActiveWordIndex()
+        }
+        .onChange(of: liveTranscription) { _, _ in
+            updateActiveWordIndex()
         }
     }
 

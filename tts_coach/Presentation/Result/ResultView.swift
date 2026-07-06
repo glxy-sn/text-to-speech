@@ -115,25 +115,27 @@ struct PracticeResultsView: View {
 
     // MARK: - Download
 
-    /// Opens a native NSSavePanel and copies the corrected WAV to the user's
-    /// chosen location. No-op if `correctedAudioURL` is nil.
+    /// Saves the corrected WAV directly to the user's Downloads folder and reveals it in Finder.
     private func downloadCorrectedAudio() {
         guard let sourceURL = correctedAudioURL else { return }
-        let panel = NSSavePanel()
-        panel.allowedContentTypes  = [UTType.wav]
-        panel.nameFieldStringValue = "pronunciation_correction.wav"
-        panel.message = "Save your corrected pronunciation audio"
-        panel.prompt  = "Save"
-        panel.begin { response in
-            guard response == .OK, let destination = panel.url else { return }
-            do {
-                if FileManager.default.fileExists(atPath: destination.path) {
-                    try FileManager.default.removeItem(at: destination)
-                }
-                try FileManager.default.copyItem(at: sourceURL, to: destination)
-            } catch {
-                print("PracticeResultsView: failed to save audio — \(error)")
+        
+        do {
+            guard let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else { return }
+            
+            var destination = downloadsURL.appendingPathComponent("pronunciation_correction.wav")
+            var counter = 1
+            while FileManager.default.fileExists(atPath: destination.path) {
+                destination = downloadsURL.appendingPathComponent("pronunciation_correction_\(counter).wav")
+                counter += 1
             }
+            
+            try FileManager.default.copyItem(at: sourceURL, to: destination)
+            
+            // Reveal the saved file in Finder
+            NSWorkspace.shared.activateFileViewerSelecting([destination])
+            
+        } catch {
+            print("PracticeResultsView: failed to save audio to downloads — \(error)")
         }
     }
 }
