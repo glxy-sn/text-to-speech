@@ -15,9 +15,9 @@ public enum TTSRefLength: String, CaseIterable, Identifiable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .short:  return "Short (5s)"
-        case .medium: return "Medium (10s)"
-        case .long:   return "Long (15s)"
+        case .short:  return "Short"
+        case .medium: return "Medium"
+        case .long:   return "Long"
         }
     }
 
@@ -25,8 +25,8 @@ public enum TTSRefLength: String, CaseIterable, Identifiable, Sendable {
     public var maxSeconds: Double {
         switch self {
         case .short:  return 5
-        case .medium: return 10
-        case .long:   return 15
+        case .medium: return 7
+        case .long:   return 9
         }
     }
 }

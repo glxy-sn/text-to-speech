@@ -72,15 +72,27 @@ def run_tts_in_process(kwargs, result_queue):
         ref_audio_path = kwargs.pop("ref_audio")
         user_speed = kwargs.pop("user_speed", 1.0)
 
-        # --- Step 1: Server-side safety cap ---
+        # --- Step 1: Server-side safety cap & VAD ---
         # The 0.5B CosyVoice models degrade / produce gibberish when the Whisper
-        # transcript of the reference becomes too long. Cap regardless of client upload.
-        MAX_REF_SECONDS = 15.0
-        audio_info = sf.info(ref_audio_path)
-        if audio_info.duration > MAX_REF_SECONDS:
-            print(f"Reference is {audio_info.duration:.1f}s — capping to {MAX_REF_SECONDS}s...")
-            data, samplerate = sf.read(ref_audio_path)
-            sf.write(ref_audio_path, data[:int(MAX_REF_SECONDS * samplerate)], samplerate)
+        # transcript of the reference becomes too long or contains silence at the ends.
+        try:
+            print("Applying VAD to remove silence on both ends...")
+            from mlx_audio.tts.generate import remove_silence_on_both_ends
+            y, sr = librosa.load(ref_audio_path, sr=None)
+            
+            # Apply VAD
+            y = remove_silence_on_both_ends(y, sr, window_duration=0.1, volume_threshold=0.015)
+            
+            # Cap length if still too long
+            MAX_REF_SECONDS = 15.0
+            max_samples = int(MAX_REF_SECONDS * sr)
+            if len(y) > max_samples:
+                print(f"Reference is still >{MAX_REF_SECONDS}s after VAD — capping...")
+                y = y[:max_samples]
+                
+            sf.write(ref_audio_path, y, sr)
+        except Exception as e:
+            print(f"Warning: VAD/Capping failed: {e}")
 
         # --- Step 2: Transcribe reference audio (for pace detection and zero-shot cloning) ---
         ref_text = kwargs.get("ref_text")
@@ -176,7 +188,8 @@ async def generate_tts(
             "file_prefix": output_prefix,
             "lang_code": "auto",
             "user_speed": speed,
-            "temperature": 0.7,
+            "temperature": 0.2,
+            "repetition_penalty": 1.2,
         }
 
         if ref_text:

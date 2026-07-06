@@ -105,12 +105,7 @@ public actor QwenTTSService: TTSServiceProtocol {
         var refText: String? = nil
         if let refURL = referenceAudioURL {
             // Trim on silence boundary first
-            let maxSecs: Double
-            switch refLength {
-            case .short:  maxSecs = 5
-            case .medium: maxSecs = 10
-            case .long:   maxSecs = 15
-            }
+            let maxSecs = refLength.maxSeconds
             let trimmedRefURL = try trimAudio(from: refURL, maxSeconds: maxSecs)
             defer { try? FileManager.default.removeItem(at: trimmedRefURL) }
             

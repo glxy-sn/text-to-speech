@@ -127,7 +127,7 @@ class AlignmentScorerEngine {
                     }
                     
                     sumGammaLin += gammaLin
-                    sumLogP += gammaLin * (logP - 0.5 * maxLogP)
+                    sumLogP += gammaLin * (logP - maxLogP)
                 }
             }
             
@@ -136,6 +136,21 @@ class AlignmentScorerEngine {
             let frames = Int(round(sumGammaLin))
             
             metrics.append(PhoneScore(symbol: targets[k], gopScore: score, frames: frames))
+        }
+        // Post-processing to fix geminates (consecutive identical phonemes)
+        var i = 0
+        while i < metrics.count {
+            var j = i + 1
+            while j < metrics.count && metrics[j].symbol == metrics[i].symbol {
+                j += 1
+            }
+            if j > i + 1 {
+                let maxScore = metrics[i..<j].map { $0.gopScore }.max() ?? 0.0
+                for k in i..<j {
+                    metrics[k] = PhoneScore(symbol: metrics[k].symbol, gopScore: maxScore, frames: metrics[k].frames)
+                }
+            }
+            i = j
         }
         
         return metrics

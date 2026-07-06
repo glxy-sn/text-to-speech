@@ -112,12 +112,7 @@ public actor CosyVoiceTTSService: TTSServiceProtocol {
             throw TTSError.voiceNotFound("Reference audio is required for zero-shot cloning.")
         }
 
-        let maxSecs: Double
-        switch refLength {
-        case .short:  maxSecs = 5
-        case .medium: maxSecs = 10
-        case .long:   maxSecs = 15
-        }
+        let maxSecs = refLength.maxSeconds
         let trimmedRefURL = try trimAudio(from: refURL, maxSeconds: maxSecs)
         defer { try? FileManager.default.removeItem(at: trimmedRefURL) }
         
