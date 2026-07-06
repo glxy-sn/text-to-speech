@@ -69,14 +69,24 @@ struct VoiceRefRecordingStepView: View {
         
         // Final block confidence check: only finish if we hear the end of the text
         if newIndex >= totalWords - 1 && totalWords > 0 && !hasFinished {
-            let finalWords = teleprompterData.flatMap { $0.words }.suffix(5)
-                .map { $0.lowercased().trimmingCharacters(in: .punctuationCharacters) }
-                .filter { $0.count > 2 }
+            let cleanScript = teleprompterData.map { $0.text }.joined().lowercased()
+                .components(separatedBy: .punctuationCharacters).joined()
+                .replacingOccurrences(of: " ", with: "")
                 
-            let recentSpoken = spokenWords.suffix(15)
-                .map { $0.lowercased().trimmingCharacters(in: .punctuationCharacters) }
+            let cleanTranscript = liveTranscription.lowercased()
+                .components(separatedBy: .punctuationCharacters).joined()
+                .replacingOccurrences(of: " ", with: "")
+                
+            let length = cleanScript.count
+            let hearsFinalBlock: Bool
             
-            let hearsFinalBlock = finalWords.isEmpty || finalWords.contains(where: { recentSpoken.contains($0) })
+            if length >= 6 {
+                let end1 = String(cleanScript.suffix(4))
+                let end2 = String(cleanScript.dropLast(2).suffix(4))
+                hearsFinalBlock = cleanTranscript.contains(end1) || cleanTranscript.contains(end2)
+            } else {
+                hearsFinalBlock = cleanScript.isEmpty || cleanTranscript.contains(cleanScript)
+            }
             
             if hearsFinalBlock {
                 hasFinished = true

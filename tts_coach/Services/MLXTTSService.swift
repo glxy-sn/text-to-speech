@@ -135,7 +135,10 @@ public actor QwenTTSService: TTSServiceProtocol {
         )
         MLX.eval(mlxArray)
         
-        let generatedFloats = mlxArray.asArray(Float.self)
+        var generatedFloats = mlxArray.asArray(Float.self)
+        
+        // Remove trailing and leading hallucinations/clicks/silence before adding digital silence padding
+        generatedFloats = trimSilenceAndNoise(from: generatedFloats, sampleRate: model.sampleRate)
         
         // Prepend and append 250ms of silence to prevent hardware/playback truncation
         let silenceSamples = Int(0.25 * Double(model.sampleRate))
@@ -169,65 +172,97 @@ public actor QwenTTSService: TTSServiceProtocol {
     
     // MARK: - Audio Trimming
     
-    private func trimAudio(from url: URL, maxSeconds: Double) throws -> URL {
-        let inputFile = try AVAudioFile(forReading: url)
-        let format = inputFile.processingFormat
-        let sampleRate = format.sampleRate
-
-        let totalFrames = inputFile.length
-        let maxFrames = AVAudioFrameCount(maxSeconds * sampleRate)
-        let framesToRead = AVAudioFrameCount(min(Int64(maxFrames), totalFrames))
-
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: framesToRead) else {
-            throw NSError(domain: "QwenTTSService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Buffer allocation failed"])
-        }
-        try inputFile.read(into: buffer, frameCount: framesToRead)
-
-        let safeFrames = getSafeTrimFrame(buffer: buffer, maxFrames: framesToRead)
-        buffer.frameLength = safeFrames
-
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("qwen_ref_\(UUID().uuidString).wav")
-
-        let outputFile = try AVAudioFile(forWriting: tempURL, settings: format.settings)
-        try outputFile.write(from: buffer)
-
-        return tempURL
-    }
-
-    private func getSafeTrimFrame(buffer: AVAudioPCMBuffer, maxFrames: AVAudioFrameCount) -> AVAudioFrameCount {
-        guard let channelData = buffer.floatChannelData?[0] else { return maxFrames }
-        let sampleRate = buffer.format.sampleRate
-        // Use a 300ms window to find a true pause, not just a stop-consonant closure (which can be ~100ms).
-        let windowFrames = Int(0.3 * sampleRate)
+    private func trimSilenceAndNoise(from floats: [Float], sampleRate: Int) -> [Float] {
+        let windowSeconds = 0.05 // 50ms windows
+        let windowFrames = Int(windowSeconds * Double(sampleRate))
+        let minSpeechSeconds = 0.1 // 100ms minimum to be considered actual speech
+        let minSpeechWindows = Int(minSpeechSeconds / windowSeconds)
         
-        let minEnd = Int(Double(maxFrames) * 0.5)
-        var currentEnd = Int(maxFrames)
+        let totalWindows = floats.count / windowFrames
+        guard totalWindows > 0 else { return floats }
         
-        var bestEnd = Int(maxFrames)
-        var bestRMS: Float = .greatestFiniteMagnitude
+        var isSpeech = [Bool](repeating: false, count: totalWindows)
         
-        while currentEnd - windowFrames >= minEnd {
-            let start = currentEnd - windowFrames
+        // 1. Mark active windows (RMS > 0.015)
+        for w in 0..<totalWindows {
+            let start = w * windowFrames
+            let end = start + windowFrames
             var sum: Float = 0.0
-            for i in start..<currentEnd {
-                let sample = channelData[i]
+            for i in start..<end {
+                let sample = floats[i]
                 sum += sample * sample
             }
             let rms = sqrt(sum / Float(windowFrames))
-            
-            if rms < 0.015 {
-                return AVAudioFrameCount(currentEnd)
-            }
-            
-            if rms < bestRMS {
-                bestRMS = rms
-                bestEnd = currentEnd
-            }
-            
-            currentEnd -= Int(0.1 * sampleRate) // Step back by 100ms
+            isSpeech[w] = rms > 0.015
         }
-        return AVAudioFrameCount(bestEnd)
+        
+        // 2. Scan FORWARD to find the FIRST valid speech block
+        var firstValidStartWindow = 0
+        var currentBlockLength = 0
+        var foundValidSpeechStart = false
+        
+        for w in 0..<totalWindows {
+            if isSpeech[w] {
+                currentBlockLength += 1
+            } else {
+                if currentBlockLength >= minSpeechWindows {
+                    firstValidStartWindow = w - currentBlockLength
+                    foundValidSpeechStart = true
+                    break
+                }
+                currentBlockLength = 0
+            }
+        }
+        
+        if !foundValidSpeechStart && currentBlockLength >= minSpeechWindows {
+            firstValidStartWindow = totalWindows - currentBlockLength
+            foundValidSpeechStart = true
+        }
+        
+        // 3. Scan BACKWARD to find the LAST valid speech block
+        var lastValidEndWindow = totalWindows - 1
+        currentBlockLength = 0
+        var foundValidSpeechEnd = false
+        
+        for w in (0..<totalWindows).reversed() {
+            if isSpeech[w] {
+                currentBlockLength += 1
+            } else {
+                if currentBlockLength >= minSpeechWindows {
+                    lastValidEndWindow = w + currentBlockLength
+                    foundValidSpeechEnd = true
+                    break
+                }
+                currentBlockLength = 0
+            }
+        }
+        
+        if !foundValidSpeechEnd && currentBlockLength >= minSpeechWindows {
+            lastValidEndWindow = currentBlockLength - 1
+            foundValidSpeechEnd = true
+        }
+        
+        // 4. Apply trims
+        var startIndex = 0
+        var endIndex = floats.count
+        
+        if foundValidSpeechStart {
+            // Keep 1 window (50ms) of silence before speech
+            let startWindow = max(0, firstValidStartWindow - 1)
+            startIndex = startWindow * windowFrames
+        }
+        
+        if foundValidSpeechEnd {
+            // Keep 1 window (50ms) of silence after speech
+            let endWindow = min(totalWindows - 1, lastValidEndWindow + 1)
+            endIndex = (endWindow + 1) * windowFrames
+        }
+        
+        if startIndex < endIndex && startIndex < floats.count {
+            return Array(floats[startIndex..<min(endIndex, floats.count)])
+        }
+        
+        return floats
     }
 }
 
