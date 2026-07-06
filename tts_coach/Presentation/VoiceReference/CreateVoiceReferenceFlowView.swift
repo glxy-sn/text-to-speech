@@ -88,7 +88,8 @@ struct CreateVoiceReferenceFlowView: View {
                     script: viewModel.script,
                     startedAt: startedAt,
                     isCapturingAudio: viewModel.isActuallyRecording,
-                    audioLevels: viewModel.audioRecorder.audioLevels
+                    audioLevels: viewModel.audioRecorder.audioLevels,
+                    liveTranscription: viewModel.audioRecorder.liveTranscription
                 ) {
                     viewModel.finishRecording()
                 }

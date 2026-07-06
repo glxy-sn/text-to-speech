@@ -45,10 +45,13 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     @Published private(set) var isRecording = false
     @Published private(set) var permissionStatus: PermissionStatus = .notDetermined
     @Published private(set) var audioLevels: [Float] = Array(repeating: 0.0, count: 36)
+    @Published private(set) var liveTranscription: String = ""
 
     private var recorder: AVAudioRecorder?
     private(set) var recordingURL: URL?
     private var meterTimer: Timer?
+    private var transcriptionTimer: Timer?
+    private var transcriptionTask: Task<Void, Never>?
 
     /// Re-checks live authorization status without attempting to record.
     /// Useful when the app's window becomes active again — e.g. the user
@@ -105,17 +108,16 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     private func beginRecording() {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("m4a")
+            .appendingPathExtension("caf")
 
-        // Mono AAC at a modest sample rate — plenty for speech, and keeps
-        // file sizes small. Revisit if a future pronunciation-scoring
-        // model wants something specific (e.g. 16kHz mono is common for
-        // ASR models).
+        // 16kHz Mono PCM is perfect for Whisper and can be read live while writing
         let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 44_100,
+            AVFormatIDKey: Int(kAudioFormatLinearPCM),
+            AVSampleRateKey: 16000.0,
             AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false
         ]
 
         do {
@@ -132,6 +134,7 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
             self.recorder = recorder
             self.recordingURL = url
             self.isRecording = true
+            self.liveTranscription = ""
             print("AudioRecorderService: recording started → \(url.path)")
             
             // Start meter polling timer
@@ -139,6 +142,9 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
                 self.audioLevels = Array(repeating: 0.0, count: 36)
                 self.meterTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
                     self?.updateMeters()
+                }
+                self.transcriptionTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+                    self?.runLiveTranscription()
                 }
             }
         } catch {
@@ -160,6 +166,10 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         }
         meterTimer?.invalidate()
         meterTimer = nil
+        transcriptionTimer?.invalidate()
+        transcriptionTimer = nil
+        transcriptionTask?.cancel()
+        
         recorder.stop()
         self.recorder = nil
         isRecording = false
@@ -177,6 +187,10 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
     func discardRecording() {
         meterTimer?.invalidate()
         meterTimer = nil
+        transcriptionTimer?.invalidate()
+        transcriptionTimer = nil
+        transcriptionTask?.cancel()
+        
         recorder?.stop()
         recorder = nil
         isRecording = false
@@ -197,6 +211,25 @@ final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendabl
         
         audioLevels.removeFirst()
         audioLevels.append(normalized)
+    }
+
+    private func runLiveTranscription() {
+        guard let url = recordingURL, isRecording else { return }
+        
+        // Cancel previous if still running
+        transcriptionTask?.cancel()
+        
+        transcriptionTask = Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            do {
+                // Whisper handles the growing .caf file seamlessly
+                let text = try await SharedSTTService.shared.transcribe(audioURL: url)
+                guard !Task.isCancelled, self.isRecording else { return }
+                self.liveTranscription = text
+            } catch {
+                print("AudioRecorderService: live transcription error: \(error)")
+            }
+        }
     }
 }
 

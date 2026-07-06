@@ -24,35 +24,41 @@ struct VoiceRefRecordingStepView: View {
     let startedAt: Date
     var isCapturingAudio: Bool = true
     var audioLevels: [Float] = Array(repeating: 0.0, count: 36)
+    var liveTranscription: String = ""
     var onStop: () -> Void
 
     @State private var userScrolled = false
     @State private var elapsedSeconds: Int = 0
 
-    private var sentences: [String] {
+    private var teleprompterData: [TeleprompterSentence] {
         var text = script
         text = text.replacingOccurrences(of: ", ", with: ",|")
         text = text.replacingOccurrences(of: ". ", with: ".|")
         text = text.replacingOccurrences(of: "; ", with: ";|")
         text = text.replacingOccurrences(of: ": ", with: ":|")
         
-        return text.components(separatedBy: "|")
+        let sentenceStrings = text.components(separatedBy: "|")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
+            
+        var data = [TeleprompterSentence]()
+        var currentGlobalWordIndex = 0
+        for (i, s) in sentenceStrings.enumerated() {
+            let words = s.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            data.append(TeleprompterSentence(id: i, text: s, words: words, startWordIndex: currentGlobalWordIndex))
+            currentGlobalWordIndex += words.count
+        }
+        return data
     }
     
-    private func sentenceIndex(for elapsed: Int) -> Int {
+    private func activeWordIndex(for elapsed: Int) -> Int {
         let wordsPerSecond = 2.16
-        var cumulativeTime = 0.0
-        for (i, sentence) in sentences.enumerated() {
-            let wordCount = sentence.split(separator: " ").count
-            let duration = Double(wordCount) / wordsPerSecond
-            cumulativeTime += duration
-            if Double(elapsed) < cumulativeTime {
-                return i
-            }
-        }
-        return sentences.count - 1
+        let fallbackIndex = Int(Double(elapsed) * wordsPerSecond)
+        
+        let spokenWords = liveTranscription.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        
+        // Use live transcription word count, fallback to timer if live is lagging
+        return max(fallbackIndex, spokenWords.count)
     }
 
     var body: some View {
@@ -61,10 +67,9 @@ struct VoiceRefRecordingStepView: View {
                 .font(.title3.weight(.semibold))
 
             TeleprompterDisplayView(
-                sentences: sentences,
-                currentSentenceIndex: sentenceIndex(for: elapsedSeconds),
-                shouldAutoScroll: !userScrolled,
-                onUserScroll: { userScrolled = true }
+                sentences: teleprompterData,
+                activeWordIndex: activeWordIndex(for: elapsedSeconds),
+                shouldAutoScroll: !userScrolled
             )
             .frame(height: 200)
             .background(AppTheme.accentSoft)

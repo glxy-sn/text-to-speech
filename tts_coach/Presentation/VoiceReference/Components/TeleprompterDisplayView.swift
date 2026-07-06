@@ -8,41 +8,45 @@
 
 import SwiftUI
 
+struct TeleprompterSentence: Identifiable, Equatable {
+    let id: Int
+    let text: String
+    let words: [String]
+    let startWordIndex: Int
+}
+
 /// Display component for the teleprompter that shows sentences and highlights current one
 struct TeleprompterDisplayView: View {
 
-    let sentences: [String]
-    let currentSentenceIndex: Int
+    let sentences: [TeleprompterSentence]
+    let activeWordIndex: Int
     let shouldAutoScroll: Bool
-    let onUserScroll: () -> Void
     
     var body: some View {
+        let activeSentenceIndex = sentences.firstIndex { s in
+            activeWordIndex >= s.startWordIndex && activeWordIndex < (s.startWordIndex + s.words.count)
+        } ?? (sentences.count - 1)
+        
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    ForEach(Array(sentences.enumerated()), id: \.offset) { index, sentence in
+                    ForEach(sentences) { sentence in
                         SentenceRowView(
                             sentence: sentence,
-                            isHighlighted: index == currentSentenceIndex,
-                            isPassed: index < currentSentenceIndex
+                            activeWordIndex: activeWordIndex
                         )
-                        .id(index)
+                        .id(sentence.id)
                     }
                 }
                 .padding()
             }
-            .onChange(of: currentSentenceIndex) {_, newIndex in
+            .onChange(of: activeSentenceIndex) {_, newIndex in
                 if shouldAutoScroll {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         proxy.scrollTo(newIndex, anchor: .center)
                     }
                 }
             }
-            .simultaneousGesture(
-                DragGesture().onChanged { _ in
-                    onUserScroll()
-                }
-            )
         }
     }
 }
@@ -50,35 +54,45 @@ struct TeleprompterDisplayView: View {
 struct SentenceRowView: View {
     @Environment(\.colorScheme) var colorScheme
     
-    let sentence: String
-    let isHighlighted: Bool
-    let isPassed: Bool
+    let sentence: TeleprompterSentence
+    let activeWordIndex: Int
     
     var body: some View {
-        Text(sentence)
-            .font(.system(size: 24, weight: isHighlighted ? .bold : .regular))
-            .foregroundColor(textColor)
+        let sentenceIsActive = activeWordIndex >= sentence.startWordIndex && activeWordIndex < (sentence.startWordIndex + sentence.words.count)
+        let sentenceIsPassed = activeWordIndex >= (sentence.startWordIndex + sentence.words.count)
+        
+        var combined = Text("")
+        for (i, word) in sentence.words.enumerated() {
+            let globalIndex = sentence.startWordIndex + i
+            let isHighlighted = globalIndex == activeWordIndex
+            let isPassed = globalIndex < activeWordIndex
+            
+            var wordText = Text(word + " ")
+                .font(.system(size: 24, weight: isHighlighted ? .bold : .regular))
+            
+            if isHighlighted {
+                wordText = wordText.foregroundColor(.white)
+            } else if isPassed {
+                wordText = wordText.foregroundColor(.secondary.opacity(0.5))
+            } else {
+                wordText = wordText.foregroundColor(.primary)
+            }
+            
+            combined = combined + wordText
+        }
+        
+        return combined
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(backgroundColor)
+                    .fill(backgroundColor(isActive: sentenceIsActive))
             )
-            .animation(.easeInOut(duration: 0.2), value: isHighlighted)
+            .animation(.easeInOut(duration: 0.2), value: sentenceIsActive)
     }
     
-    private var textColor: Color {
-        if isHighlighted {
-            return .white
-        } else if isPassed {
-            return .secondary
-        } else {
-            return .primary
-        }
-    }
-    
-    private var backgroundColor: Color {
-        if isHighlighted {
+    private func backgroundColor(isActive: Bool) -> Color {
+        if isActive {
             return colorScheme == .dark ? Color.blue.opacity(0.3) : AppTheme.accent
         } else {
             return Color.clear

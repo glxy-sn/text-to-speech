@@ -134,7 +134,8 @@ struct PracticeFlowView: View {
                     startedAt: startedAt,
                     maxDurationSeconds: viewModel.maxRecordingSeconds,
                     isCapturingAudio: viewModel.isActuallyRecording,
-                    audioLevels: viewModel.audioRecorder.audioLevels
+                    audioLevels: viewModel.audioRecorder.audioLevels,
+                    liveTranscription: viewModel.audioRecorder.liveTranscription
                 ) {
                     viewModel.finishRecording(defaultVoiceID: voiceLibrary.defaultVoice?.id)
                 }
