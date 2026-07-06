@@ -50,9 +50,14 @@ public actor QwenTTSService: TTSServiceProtocol {
             repetitionContextSize: 20
         )
         
+        let silenceSamples = Int(0.25 * Double(model.sampleRate))
+        let silenceFloats = [Float](repeating: 0.0, count: silenceSamples)
+        
+        allFloats.append(contentsOf: silenceFloats)
+        onAudioChunk?(silenceFloats)
+        
         for try await event in model.generateStream(
             text: safeText,
-
             voice: nil,
             refAudio: nil,
             refText: nil,
@@ -65,6 +70,9 @@ public actor QwenTTSService: TTSServiceProtocol {
                 onAudioChunk?(floatArray)
             }
         }
+        
+        allFloats.append(contentsOf: silenceFloats)
+        onAudioChunk?(silenceFloats)
         
         return allFloats
     }
@@ -126,7 +134,14 @@ public actor QwenTTSService: TTSServiceProtocol {
             generationParameters: params
         )
         MLX.eval(mlxArray)
-        allFloats = mlxArray.asArray(Float.self)
+        
+        let generatedFloats = mlxArray.asArray(Float.self)
+        
+        // Prepend and append 250ms of silence to prevent hardware/playback truncation
+        let silenceSamples = Int(0.25 * Double(model.sampleRate))
+        let silenceFloats = [Float](repeating: 0.0, count: silenceSamples)
+        
+        allFloats = silenceFloats + generatedFloats + silenceFloats
         
         let endTime = CFAbsoluteTimeGetCurrent()
         let ttfa = endTime - startTime
