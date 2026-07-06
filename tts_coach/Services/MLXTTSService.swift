@@ -112,7 +112,11 @@ public actor QwenTTSService: TTSServiceProtocol {
         var refText: String? = nil
         if let refURL = referenceAudioURL {
             let (_, audioArray) = try loadAudioArray(from: refURL, sampleRate: model.sampleRate)
-            refAudioArray = audioArray
+            
+            // Pre-clean the reference audio to prevent the model from cloning user breaths/clicks
+            var refFloats = audioArray.asArray(Float.self)
+            refFloats = trimSilenceAndNoise(from: refFloats, sampleRate: model.sampleRate)
+            refAudioArray = MLXArray(refFloats)
             
             if let stored = referenceTranscript, !stored.isEmpty {
                 print("Using known transcript directly...")
