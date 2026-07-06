@@ -139,39 +139,53 @@ public class PhonemeWordAligner {
     
     private static func phoneticSimilarity(char: Character, phoneme: String) -> Double {
         let c = String(char).lowercased()
-        let p = phoneme.lowercased()
+        let pOriginal = phoneme.lowercased()
         
         let exactMatches: [String: [String]] = [
-            "p": ["p"], "b": ["b"], "t": ["t", "ɾ"], "d": ["d", "ɾ"], "k": ["k"], "g": ["g", "ɡ"],
-            "f": ["f"], "v": ["v"], "s": ["s"], "z": ["z"],
-            "m": ["m"], "n": ["n"], "l": ["l"], "r": ["ɹ", "r", "ɚ"],
-            "h": ["h"], "w": ["w"], "y": ["j"],
-            "c": ["k", "s", "tʃ"], "q": ["k"], "x": ["k", "s", "z"]
+            "p": ["p", "ph", "pʰ", "pʲ", "pː"], "b": ["b", "bʰ", "bʲ", "bː"],
+            "t": ["t", "ɾ", "th", "tʰ", "tʲ", "tː"], "d": ["d", "ɾ", "dʰ", "dʲ", "dː", "dˤ", "ɖ", "ɖʰ"],
+            "k": ["k", "kh", "kʰ", "kʲ", "kː", "q", "qː"], "g": ["g", "ɡ", "ɡʰ", "ɡʲ", "ɡː", "ɢ", "ɟ", "ŋ"],
+            "f": ["f", "fʲ", "ɸ"], "v": ["v", "vʲ", "ʋ", "β"], 
+            "s": ["s", "sʲ", "s̪", "ʂ", "ʂʲ", "ʃ"], "z": ["z", "dz", "ts", "tsh", "tsʰ", "tʂ", "tʂʰ", "dzː"],
+            "m": ["m", "mʲ"], "n": ["n", "nʲ", "n̩", "ɳ", "ɲ", "ɴ", "ŋ"], "l": ["l", "l̩", "ɭ", "ʎ", "lː", "ɫ"],
+            "r": ["ɹ", "r", "ɚ", "rʲ", "r̩", "r̝", "r̝̊", "ɽ", "ʐ", "ɻ", "ʁ"],
+            "h": ["h", "x", "xʲ", "χ", "ħ", "ʕ", "ɦ", "ʂ", "tʂ", "tʂʰ"],
+            "w": ["w"], "y": ["j", "ʝ", "ʎ"],
+            "c": ["k", "s", "tʃ", "ts", "tsh", "tsʰ", "tɕ", "tɕh", "tɕʰ", "c", "cʰ", "cː", "tʂʰ", "ʈʰ"],
+            "q": ["k", "tɕ", "tɕh", "tɕʰ", "q", "qː"], 
+            "x": ["k", "s", "z", "ɕ", "ɕʲ", "x", "xʲ"],
+            "j": ["j", "dʒ", "tɕ", "tɕh", "tɕʰ", "dʑ", "dʑʲ", "ɟ"]
         ]
         
-        if let matches = exactMatches[c], matches.contains(p) { return 3.0 }
-        if c == p { return 3.0 }
+        // Match exact original phoneme first
+        if let matches = exactMatches[c], matches.contains(pOriginal) { return 3.0 }
         
-        let labials = ["p", "b", "f", "v", "m", "w"]
-        let alveolars = ["t", "d", "s", "z", "n", "l", "ɹ", "r", "θ", "ð", "ɾ"]
-        let velars = ["k", "g", "ɡ", "ŋ"]
-        let palatals = ["ʃ", "ʒ", "tʃ", "dʒ", "j"]
+        // Clean phoneme for vowel and class checking (strip digits, length marks, and aspiration)
+        let pClean = pOriginal.replacingOccurrences(of: "[0-9ː.ˤɜʰhʲ]", with: "", options: .regularExpression)
+        if c == pClean { return 3.0 }
+        
+        let labials = ["p", "b", "f", "v", "m", "w", "ʋ", "β", "ɸ"]
+        let alveolars = ["t", "d", "s", "z", "n", "l", "ɹ", "r", "θ", "ð", "ɾ", "ts", "dz"]
+        let velars = ["k", "g", "ɡ", "ŋ", "q", "x", "ɣ", "n"]
+        let palatals = ["ʃ", "ʒ", "tʃ", "dʒ", "j", "tɕ", "dʑ", "ɕ", "ɲ", "ʎ", "c", "ɟ"]
+        let retroflexes = ["ʈ", "ɖ", "ʂ", "ʐ", "ɻ", "ɳ", "ɭ", "tʂ", "s", "z"]
         
         func getClass(_ s: String) -> Int {
             if labials.contains(s) { return 1 }
             if alveolars.contains(s) { return 2 }
             if velars.contains(s) { return 3 }
             if palatals.contains(s) { return 4 }
+            if retroflexes.contains(s) { return 5 }
             return 0
         }
         
         let charClass = getClass(c)
-        let phoneClass = getClass(p)
+        let phoneClass = getClass(pClean)
         
         if charClass != 0 && charClass == phoneClass { return 1.5 }
         
         let isCharVow = "aeiouy".contains(c)
-        let isPhoneVow = ["a", "e", "i", "o", "u", "y", "ə", "ɛ", "ɪ", "ɐ", "ʊ", "ʌ", "æ", "ɔ", "ɑ", "ɚ", "ɜ", "œ", "ø", "ɨ", "ʉ", "ä", "ɒ", "ɵ", "̃"].contains { p.contains($0) }
+        let isPhoneVow = ["a", "e", "i", "o", "u", "y", "ə", "ɛ", "ɪ", "ɐ", "ʊ", "ʌ", "æ", "ɔ", "ɑ", "ɚ", "œ", "ø", "ɨ", "ʉ", "ä", "ɒ", "ɵ", "̃"].contains { pClean.contains($0) }
         
         if isCharVow && isPhoneVow { return 2.0 }
         if !isCharVow && !isPhoneVow { return 0.0 }
