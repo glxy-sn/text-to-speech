@@ -39,23 +39,11 @@ struct VoiceListItemCard: View {
                 Text("Created \(voice.createdDate)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                HStack(spacing: 4) {
-                    Image(systemName: "mic")
-                        .font(.caption2)
-                    Text(voice.language)
-                        .font(.caption)
-                }
-                .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            AnimatedWaveformView(
-                barCount: 12,
-                isAnimating: false,
-                color: isSelected ? AppTheme.accent : Color(nsColor: .secondaryLabelColor)
-            )
-            .frame(width: 56)
+
 
             Image(systemName: "chevron.right")
                 .font(.caption)

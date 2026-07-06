@@ -71,7 +71,7 @@ struct VoiceDetailHeaderView: View {
                     }
                 }
 
-                Text("\(voice.language) • Created \(voice.createdDate)")
+                Text("Created \(voice.createdDate)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 

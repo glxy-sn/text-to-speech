@@ -13,6 +13,7 @@ struct PracticeRecordingReviewStepView: View {
     let durationSeconds: Int
     var onGenerateCorrection: () -> Void
     var onReRecord: () -> Void
+    var isPlaying: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -58,7 +59,11 @@ struct PracticeRecordingReviewStepView: View {
             }
             .buttonStyle(.plain)
 
-            AnimatedWaveformView(barCount: 40, isAnimating: false)
+            if isPlaying {
+                WaveformView(levels: Array(repeating: 0.1, count: 40))
+            } else {
+                Spacer()
+            }
 
             Text("00:00 / \(timeString(durationSeconds))")
                 .font(.caption)

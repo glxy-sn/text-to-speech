@@ -16,6 +16,7 @@ struct VoiceRefReviewStepView: View {
     let script: String
     let durationSeconds: Int
     var isPlaying: Bool = false
+    var levels: [Float] = Array(repeating: 0.1, count: 36)
     var onPlay: () -> Void = {}
     var onReRecord: () -> Void
     var onNext: () -> Void
@@ -40,7 +41,11 @@ struct VoiceRefReviewStepView: View {
                 }
                 .buttonStyle(.plain)
 
-                AnimatedWaveformView(isAnimating: isPlaying)
+                if isPlaying {
+                    WaveformView(levels: levels)
+                } else {
+                    Spacer()
+                }
 
                 Text(durationLabel)
                     .font(.caption)

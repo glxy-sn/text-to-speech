@@ -38,16 +38,26 @@ extension Array where Element == ScoredWord {
     }
 }
 
-enum WordFeedbackContent {
-    case needsReview(score: Int, youSaidIPA: String, expectedIPA: String, tip: String)
-    case good
+struct PhonemeFeedback: Identifiable {
+    let id = UUID()
+    let symbol: String
+    let score: Int
+    
+    var status: PronunciationStatus {
+        score > 70 ? .good : score > 40 ? .needsWork : .incorrect
+    }
 }
 
 struct WordFeedbackItem: Identifiable {
     let id = UUID()
     let word: String
     let status: PronunciationStatus
-    let content: WordFeedbackContent
+    let overallScore: Int
+    let phonemes: [PhonemeFeedback]
+    let startTime: TimeInterval?
+    let endTime: TimeInterval?
+    let ttsStartTime: TimeInterval?
+    let ttsEndTime: TimeInterval?
 }
 
 // MARK: - ScoringResult
@@ -57,7 +67,7 @@ struct WordFeedbackItem: Identifiable {
 struct ScoringResult {
     let overallScore: Int              // 0 – 100 (average GOP × 100)
     let scoredWords: [ScoredWord]      // word-level coloured chips
-    let feedbackItems: [WordFeedbackItem]  // phoneme-level carousel cards
+    let feedbackItems: [WordFeedbackItem]  // word-level carousel cards with phonemes
 
     /// Safe fallback when scoring isn't available (model missing, audio error, etc.).
     /// Produces a result that looks like the old placeholder behaviour so the
@@ -96,30 +106,37 @@ extension Array where Element == ScoredWord {
 
 extension Array where Element == WordFeedbackItem {
     static let sampleFeedback: [WordFeedbackItem] = [
-        .init(word: "consecttur", status: .incorrect, content: .needsReview(
-            score: 45,
-            youSaidIPA: "/kənˈsɛktətər/",
-            expectedIPA: "/kənˌsɛkˈtɛtʊr/",
-            tip: "Try to reduce the \"t\" in the middle and stress the second syllable."
-        )),
-        .init(word: "adipiscing", status: .needsWork, content: .needsReview(
-            score: 65,
-            youSaidIPA: "/əˌdɪpɪsɪŋ/",
-            expectedIPA: "/əˈdɪpɪsɪŋ/",
-            tip: "The first syllable should be a schwa /ə/. Try to relax your mouth."
-        )),
-        .init(word: "eiusmod", status: .incorrect, content: .needsReview(
-            score: 40,
-            youSaidIPA: "/eɪˈjusmɒd/",
-            expectedIPA: "/iːˈjusmɒd/",
-            tip: "The first sound is long 'ee' /iː/, not 'ay'."
-        )),
-        .init(word: "incididunt", status: .needsWork, content: .needsReview(
-            score: 70,
-            youSaidIPA: "/ɪnˈsɪdɪdənt/",
-            expectedIPA: "/ɪnˈsɪdɪdʊnt/",
-            tip: "Stress the second syllable 'di' more clearly."
-        )),
-        .init(word: "ut", status: .good, content: .good)
+        .init(word: "consectetur", status: .incorrect, overallScore: 45, phonemes: [
+            .init(symbol: "k", score: 80),
+            .init(symbol: "ə", score: 75),
+            .init(symbol: "n", score: 85),
+            .init(symbol: "s", score: 30),
+            .init(symbol: "ɛ", score: 40),
+            .init(symbol: "k", score: 50),
+            .init(symbol: "t", score: 20),
+            .init(symbol: "ə", score: 45),
+            .init(symbol: "t", score: 30),
+            .init(symbol: "ʊ", score: 80),
+            .init(symbol: "r", score: 85)
+        ], startTime: 0.5, endTime: 1.2, ttsStartTime: 0.5, ttsEndTime: 1.2),
+        .init(word: "adipiscing", status: .needsWork, overallScore: 65, phonemes: [
+            .init(symbol: "ə", score: 55),
+            .init(symbol: "d", score: 65),
+            .init(symbol: "ɪ", score: 70),
+            .init(symbol: "p", score: 80),
+            .init(symbol: "ɪ", score: 45),
+            .init(symbol: "s", score: 85),
+            .init(symbol: "ɪ", score: 60),
+            .init(symbol: "ŋ", score: 75)
+        ], startTime: 1.3, endTime: 2.0, ttsStartTime: 1.3, ttsEndTime: 2.0),
+        .init(word: "eiusmod", status: .incorrect, overallScore: 40, phonemes: [
+            .init(symbol: "i", score: 30),
+            .init(symbol: "j", score: 40),
+            .init(symbol: "u", score: 50),
+            .init(symbol: "s", score: 25),
+            .init(symbol: "m", score: 80),
+            .init(symbol: "ɒ", score: 75),
+            .init(symbol: "d", score: 85)
+        ], startTime: 2.1, endTime: 2.8, ttsStartTime: 2.1, ttsEndTime: 2.8)
     ]
 }

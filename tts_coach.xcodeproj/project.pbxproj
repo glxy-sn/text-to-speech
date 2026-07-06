@@ -7,7 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		45D3A3D72FF3B5AF0048FEA3 /* Qwen3TTS in Frameworks */ = {isa = PBXBuildFile; productRef = 45D3A3D62FF3B5AF0048FEA3 /* Qwen3TTS */; };
+		2C2943E62FF6564500E9B525 /* (null) in Frameworks */ = {isa = PBXBuildFile; };
+		2C9D892F2FF7B10E00EF558A /* MLXAudioCore in Frameworks */ = {isa = PBXBuildFile; productRef = 2C9D892E2FF7B10E00EF558A /* MLXAudioCore */; };
+		2C9D89312FF7B10E00EF558A /* MLXAudioSTT in Frameworks */ = {isa = PBXBuildFile; productRef = 2C9D89302FF7B10E00EF558A /* MLXAudioSTT */; };
+		2C9D89332FF7B10E00EF558A /* MLXAudioTTS in Frameworks */ = {isa = PBXBuildFile; productRef = 2C9D89322FF7B10E00EF558A /* MLXAudioTTS */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +30,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				45D3A3D72FF3B5AF0048FEA3 /* Qwen3TTS in Frameworks */,
+				2C9D892F2FF7B10E00EF558A /* MLXAudioCore in Frameworks */,
+				2C9D89332FF7B10E00EF558A /* MLXAudioTTS in Frameworks */,
+				2C9D89312FF7B10E00EF558A /* MLXAudioSTT in Frameworks */,
+				2C2943E62FF6564500E9B525 /* (null) in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,7 +84,9 @@
 			);
 			name = tts_coach;
 			packageProductDependencies = (
-				45D3A3D62FF3B5AF0048FEA3 /* Qwen3TTS */,
+				2C9D892E2FF7B10E00EF558A /* MLXAudioCore */,
+				2C9D89302FF7B10E00EF558A /* MLXAudioSTT */,
+				2C9D89322FF7B10E00EF558A /* MLXAudioTTS */,
 			);
 			productName = tts_coach;
 			productReference = 45FEE04F2FEE160000588E18 /* tts_coach.app */;
@@ -92,7 +100,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2650;
-				LastUpgradeCheck = 2650;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					45FEE04E2FEE160000588E18 = {
 						CreatedOnToolsVersion = 26.5;
@@ -109,7 +117,7 @@
 			mainGroup = 45FEE0462FEE160000588E18;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				45D3A3D52FF3B5AF0048FEA3 /* XCLocalSwiftPackageReference "../swift-qwen3-tts" */,
+				2C9D892D2FF7B10E00EF558A /* XCRemoteSwiftPackageReference "mlx-audio-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 45FEE0502FEE160000588E18 /* Products */;
@@ -176,6 +184,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = QW8PFJL6C3;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -201,6 +210,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -240,6 +250,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = QW8PFJL6C3;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -258,6 +269,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -270,7 +282,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = QW8PFJL6C3;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 54XZ73U5GW;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -290,6 +303,7 @@
 				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Need to access to download or upload file";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need to access your mic to record your voice";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "The app needs to recognize speech to evaluate your pronunciation.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -315,7 +329,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = QW8PFJL6C3;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 54XZ73U5GW;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -335,6 +350,7 @@
 				INFOPLIST_KEY_NSDownloadsFolderUsageDescription = "Need to access to download or upload file";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Need to access your mic to record your voice";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "The app needs to recognize speech to evaluate your pronunciation.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -375,17 +391,32 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		45D3A3D52FF3B5AF0048FEA3 /* XCLocalSwiftPackageReference "../swift-qwen3-tts" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "../swift-qwen3-tts";
+/* Begin XCRemoteSwiftPackageReference section */
+		2C9D892D2FF7B10E00EF558A /* XCRemoteSwiftPackageReference "mlx-audio-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Blaizzy/mlx-audio-swift.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		45D3A3D62FF3B5AF0048FEA3 /* Qwen3TTS */ = {
+		2C9D892E2FF7B10E00EF558A /* MLXAudioCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = Qwen3TTS;
+			package = 2C9D892D2FF7B10E00EF558A /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
+			productName = MLXAudioCore;
+		};
+		2C9D89302FF7B10E00EF558A /* MLXAudioSTT */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2C9D892D2FF7B10E00EF558A /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
+			productName = MLXAudioSTT;
+		};
+		2C9D89322FF7B10E00EF558A /* MLXAudioTTS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2C9D892D2FF7B10E00EF558A /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
+			productName = MLXAudioTTS;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

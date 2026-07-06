@@ -6,6 +6,7 @@
 //
 import SwiftUI
 import Foundation
+import Combine
 
 /// Step 2 of the Practice wizard — matches mockup image 3.
 /// Timer is derived from `startedAt` via `TimelineView`, same pattern as
@@ -20,7 +21,37 @@ struct PracticeRecordingStepView: View {
     let startedAt: Date
     let maxDurationSeconds: Int
     var isCapturingAudio: Bool = true
+    var audioLevels: [Float] = Array(repeating: 0.0, count: 36)
     var onFinish: () -> Void
+
+    @State private var userScrolled = false
+    @State private var elapsedSeconds: Int = 0
+
+    private var sentences: [String] {
+        var text = practiceText
+        text = text.replacingOccurrences(of: ", ", with: ",|")
+        text = text.replacingOccurrences(of: ". ", with: ".|")
+        text = text.replacingOccurrences(of: "; ", with: ";|")
+        text = text.replacingOccurrences(of: ": ", with: ":|")
+        
+        return text.components(separatedBy: "|")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+    
+    private func sentenceIndex(for elapsed: Int) -> Int {
+        let wordsPerSecond = 2.16
+        var cumulativeTime = 0.0
+        for (i, sentence) in sentences.enumerated() {
+            let wordCount = sentence.split(separator: " ").count
+            let duration = Double(wordCount) / wordsPerSecond
+            cumulativeTime += duration
+            if Double(elapsed) < cumulativeTime {
+                return i
+            }
+        }
+        return sentences.count - 1
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -31,7 +62,15 @@ struct PracticeRecordingStepView: View {
                     .foregroundStyle(.secondary)
             }
 
-            ScriptTextBox(text: practiceText)
+            TeleprompterDisplayView(
+                sentences: sentences,
+                currentSentenceIndex: sentenceIndex(for: elapsedSeconds),
+                shouldAutoScroll: !userScrolled,
+                onUserScroll: { userScrolled = true }
+            )
+            .frame(height: 200)
+            .background(AppTheme.accentSoft)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             recordingWidget
 
@@ -41,12 +80,15 @@ struct PracticeRecordingStepView: View {
 
             tipsRow
         }
+        .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { date in
+            elapsedSeconds = min(maxDurationSeconds, max(0, Int(date.timeIntervalSince(startedAt))))
+        }
     }
 
     private var recordingWidget: some View {
         VStack(spacing: 10) {
             ZStack {
-                AnimatedWaveformView(barCount: 48)
+                WaveformView(levels: audioLevels.isEmpty ? Array(repeating: 0.0, count: 36) : audioLevels)
                 Circle()
                     .fill(AppTheme.accent)
                     .frame(width: 56, height: 56)

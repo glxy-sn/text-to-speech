@@ -20,7 +20,6 @@ struct AppShellView: View {
 
     @StateObject private var voiceLibrary   = VoiceLibraryStore()
     @StateObject private var historyStore   = HistoryStore()
-    @StateObject private var ttsService     = QwenTTSService()
     @StateObject private var scoringService = PronunciationScoringService()
 
     init(initialTab: AppTab? = .practice) {
@@ -38,7 +37,6 @@ struct AppShellView: View {
         .frame(minWidth: 900, minHeight: 600)
         .environmentObject(voiceLibrary)
         .environmentObject(historyStore)
-        .environmentObject(ttsService)
         .environmentObject(scoringService)
         .sheet(isPresented: $isPresentingCreateVoiceReference) {
             CreateVoiceReferenceFlowView(

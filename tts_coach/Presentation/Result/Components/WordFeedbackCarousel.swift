@@ -11,6 +11,8 @@ import SwiftUI
 /// color legend — matches mockup image 6's "Word-by-Word Feedback" section.
 struct WordFeedbackCarousel: View {
     let items: [WordFeedbackItem]
+    var onPlayUser: (WordFeedbackItem) -> Void = { _ in }
+    var onPlayTTS: (WordFeedbackItem) -> Void = { _ in }
 
     @State private var selectedIndex: Int = 0
 
@@ -32,13 +34,17 @@ struct WordFeedbackCarousel: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 16) {
                             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                                WordFeedbackCard(item: item)
-                                    .id(index)
+                                WordFeedbackCard(
+                                    item: item,
+                                    onPlayUser: { onPlayUser(item) },
+                                    onPlayTTS: { onPlayTTS(item) }
+                                )
+                                .id(index)
                             }
                         }
                         .padding(.vertical, 4)
                     }
-                    .onChange(of: selectedIndex) { newValue in
+                    .onChange(of: selectedIndex) { _, newValue in
                         withAnimation {
                             proxy.scrollTo(newValue, anchor: .leading)
                         }

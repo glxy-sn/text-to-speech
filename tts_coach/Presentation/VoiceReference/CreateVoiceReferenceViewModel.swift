@@ -33,8 +33,14 @@ final class CreateVoiceReferenceViewModel: ObservableObject {
     let audioRecorder = AudioRecorderService()
     let audioPlayer   = AudioPlayerService()
 
-    let script = "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of a long round arch, with its path high above, and its two ends apparently beyond the horizon.There is, according to legend, a boiling pot of gold at one end.People look, but no one ever finds it.When a man looks for something beyond his reach, his friends say he is looking for the pot of gold at the end of the rainbow.Throughout history, the rainbow has been a symbol of hope and a sign of things to come.The vibrant bands of red, orange, yellow, green, blue, and violet curve gracefully across the sky, reminding us of the calm that follows a storm.Scientists observe these wavelengths to understand the physics of light, while artists simply try to capture their fleeting brilliance on canvas."
-
+    private static let scripts = [
+        "I wake up early every morning and make a fresh pot of coffee. I like to sit by the window, check my messages, and listen to the birds outside before starting my busy day.",
+        "Today is a beautiful day to go for a walk outside. The sun is shining brightly, and the sky is very clear. I think I will wear my favorite blue shoes and a light jacket.",
+        "For dinner tonight, I am going to cook a simple meal. We have some fresh chicken, a large bag of rice, and green vegetables. Later, we might share a small slice of chocolate cake.",
+        "This weekend, I plan to stay home and relax with my family. We want to watch a funny movie together on the television and maybe play a few games in the living room.",
+        "I need to visit the grocery store to buy some things for the house. I will get milk, fresh bread, and a few sweet apples. After that, I can finally go home and rest."
+    ]
+    let script: String = CreateVoiceReferenceViewModel.scripts.randomElement()!
     private let onCancelAction: () -> Void
     private let onFinishAction: (VoiceEnrollmentResult) -> Void
     private var cancellables = Set<AnyCancellable>()
@@ -114,8 +120,12 @@ final class CreateVoiceReferenceViewModel: ObservableObject {
 
         // Derive duration from the asset (no live-recording timer here)
         let asset = AVURLAsset(url: tempURL)
-        let secs = Int(asset.duration.seconds)
-        recordingDuration = secs > 0 ? secs : 0
+        Task { @MainActor in
+            if let duration = try? await asset.load(.duration) {
+                let secs = Int(duration.seconds)
+                self.recordingDuration = secs > 0 ? secs : 0
+            }
+        }
 
         runPreprocessing(on: tempURL)
     }
@@ -160,7 +170,7 @@ final class CreateVoiceReferenceViewModel: ObservableObject {
             let resultURL: URL?
             if let rawURL {
                 do {
-                    resultURL = try AudioPreprocessingService.preprocess(inputURL: rawURL)
+                    resultURL = try await AudioRecordingService.trimSilenceAndDenoise(audioURL: rawURL)
                     if rawURL != resultURL {
                         try? FileManager.default.removeItem(at: rawURL)
                     }

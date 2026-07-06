@@ -67,121 +67,94 @@ final class PronunciationScoringService: ObservableObject {
         try await loadEngineIfNeeded()
         guard let engine else { throw PronunciationScoringError.modelNotLoaded }
 
-        // Step 1 & 2: target phonemes from TTS audio
-        let ttsBuffer = try Self.loadAudioForWav2Vec2(from: ttsAudioURL)
-        let targetPhonemes = try engine.extractTargetPhonemes(from: ttsBuffer)
-        guard !targetPhonemes.isEmpty else { return .placeholder(for: practiceText) }
+        // Step 1: Preprocess baseline audio
+        let processedTTSURL = try await AudioRecordingService.trimSilenceAndDenoise(audioURL: ttsAudioURL)
+        let normalizedTTSURL = try await AudioRecordingService.normalizeTempo(audioURL: processedTTSURL, targetScript: practiceText, targetWPM: 130.0)
 
-        // Step 1 & 3: user logits + greedy decode
-        let userBuffer  = try Self.loadAudioForWav2Vec2(from: userRecordingURL)
-        let userLogits  = try engine.extractUserLogits(from: userBuffer)
+        // Step 2: Extract baseline target phonemes
+        let ttsBuffer = try AudioService.loadAudio(from: normalizedTTSURL)
+        let phonemesWithFrames = try engine.extractTargetPhonemes(from: ttsBuffer)
+        let targetPhonemesList = phonemesWithFrames.map { $0.symbol }
+        guard !targetPhonemesList.isEmpty else { return .placeholder(for: practiceText) }
+
+        // Step 3: ASR Word Timings
+        let asrTimings: [SpeechAlignmentService.WordTiming]
+        do {
+            asrTimings = try await SpeechAlignmentService.getWordTimings(audioURL: normalizedTTSURL, localeIdentifier: "en-US")
+        } catch {
+            print("ASR failed: \(error), falling back")
+            asrTimings = []
+        }
+        let baselineASRTimings = SpeechAlignmentService.alignTimingsToTarget(targetScript: practiceText, asrTimings: asrTimings)
+
+        // Step 4: Canonical Alignment
+        let targetWordAlignments = PhonemeWordAligner.alignHybrid(targetScript: practiceText, asrTimings: baselineASRTimings, phonemes: phonemesWithFrames)
+
+        // Step 5: Preprocess User Audio
+        let normalizedUserURL = try await AudioRecordingService.normalizeTempo(audioURL: userRecordingURL, targetScript: practiceText, targetWPM: 125.0)
+
+        // Step 6: Extract User Logits
+        let userBuffer = try AudioService.loadAudio(from: normalizedUserURL)
+        let userLogits = try engine.extractUserLogits(from: userBuffer)
         let greedyResult = engine.runGreedyDecodeWithFrames(logits: userLogits)
-        let userGreedy   = greedyResult.map { $0.symbol }
 
-        // Step 4: CTC Forward-Backward GOP
+        // Step 7: Score Pronunciation
         let phoneScores = scorer.scorePronunciation(
             userLogits: userLogits,
-            targetPhonemes: targetPhonemes,
+            targetPhonemes: targetPhonemesList,
             vocabulary: engine.vocabulary,
             greedyAnchors: greedyResult
         )
 
-        // Step 5: Map to UI models
-        let overallScore  = Self.makeOverallScore(phoneScores)
-        let scoredWords   = Self.makeScoredWords(practiceText: practiceText, phoneScores: phoneScores)
-        let feedbackItems = Self.makeFeedbackItems(phoneScores: phoneScores, userGreedy: userGreedy)
+        // Step 8: Extract ORIGINAL Audio Word Timings for UI Playback
+        let originalUserTimings = (try? await SpeechAlignmentService.getWordTimings(audioURL: userRecordingURL, localeIdentifier: "en-US")) ?? []
+        let originalUserAligned = SpeechAlignmentService.alignTimingsToTarget(targetScript: practiceText, asrTimings: originalUserTimings)
+
+        let originalTTSTimings = (try? await SpeechAlignmentService.getWordTimings(audioURL: ttsAudioURL, localeIdentifier: "en-US")) ?? []
+        let originalTTSAligned = SpeechAlignmentService.alignTimingsToTarget(targetScript: practiceText, asrTimings: originalTTSTimings)
+
+        // Step 9: Map to UI models using our canonical alignments
+        var scoredWordsList = [ScoredWord]()
+        var allWordScores = [Float]()
+        var feedbackItems = [WordFeedbackItem]()
+
+        for (i, alignment) in targetWordAlignments.enumerated() {
+            let scoresForWord = alignment.phonemeIndices.compactMap { idx in idx < phoneScores.count ? phoneScores[idx] : nil }
+            let avg = scoresForWord.isEmpty ? 0.0 : scoresForWord.map { $0.gopScore }.reduce(0, +) / Float(scoresForWord.count)
+            allWordScores.append(avg)
+
+            let status: PronunciationStatus = scoresForWord.isEmpty ? .good : (avg > 0.7 ? .good : avg > 0.4 ? .needsWork : .incorrect)
+            scoredWordsList.append(ScoredWord(text: alignment.word, status: status))
+            
+            // Only add feedback items if we have phoneme scores
+            if !scoresForWord.isEmpty {
+                let phonemeFeedbacks = scoresForWord.map { phone in
+                    PhonemeFeedback(symbol: phone.symbol, score: Int(phone.gopScore * 100))
+                }
+                
+                let userTiming = i < originalUserAligned.count ? originalUserAligned[i] : nil
+                let ttsTiming = i < originalTTSAligned.count ? originalTTSAligned[i] : nil
+                
+                feedbackItems.append(WordFeedbackItem(
+                    word: alignment.word,
+                    status: status,
+                    overallScore: Int(avg * 100),
+                    phonemes: phonemeFeedbacks,
+                    startTime: userTiming?.startTime,
+                    endTime: userTiming?.endTime,
+                    ttsStartTime: ttsTiming?.startTime,
+                    ttsEndTime: ttsTiming?.endTime
+                ))
+            }
+        }
+
+        let overallScore = allWordScores.isEmpty ? 0 : Int(min(100, max(0, (allWordScores.reduce(0, +) / Float(allWordScores.count)) * 100)))
 
         return ScoringResult(
             overallScore:  overallScore,
-            scoredWords:   scoredWords,
+            scoredWords:   scoredWordsList,
             feedbackItems: feedbackItems
         )
-    }
-
-    // MARK: - Mapping helpers
-
-    /// Overall score 0–100: average GOP × 100.
-    private static func makeOverallScore(_ scores: [PhoneScore]) -> Int {
-        guard !scores.isEmpty else { return 0 }
-        let avg = scores.map(\.gopScore).reduce(0, +) / Float(scores.count)
-        return Int(min(100, max(0, avg * 100)))
-    }
-
-    /// Map the flat phoneme sequence to words proportionally by character length.
-    /// Each word's GOP score is the average of its assigned phonemes' scores.
-    private static func makeScoredWords(practiceText: String, phoneScores: [PhoneScore]) -> [ScoredWord] {
-        let words = practiceText.split(separator: " ").map(String.init)
-        guard !words.isEmpty, !phoneScores.isEmpty else { return .allGood(from: practiceText) }
-
-        let totalChars  = max(1, words.map(\.count).reduce(0, +))
-        let totalPhones = phoneScores.count
-        var result: [ScoredWord] = []
-        var phoneOffset = 0
-
-        for (idx, word) in words.enumerated() {
-            let isLast = idx == words.count - 1
-            let count: Int
-            if isLast {
-                count = totalPhones - phoneOffset
-            } else {
-                count = max(1, Int(round(Float(word.count) / Float(totalChars) * Float(totalPhones))))
-            }
-
-            let start = phoneOffset
-            let end   = min(phoneOffset + count, totalPhones)
-            let slice = Array(phoneScores[start..<end])
-
-            let status: PronunciationStatus
-            if slice.isEmpty {
-                status = .good
-            } else {
-                let avg = slice.map(\.gopScore).reduce(0, +) / Float(slice.count)
-                status = avg > 0.7 ? .good : avg > 0.4 ? .needsWork : .incorrect
-            }
-
-            result.append(ScoredWord(text: word, status: status))
-            phoneOffset = end
-        }
-
-        return result
-    }
-
-    /// Phoneme-level feedback cards for the carousel.
-    /// Good phonemes get a green "Great!" card; imperfect ones get a detail card
-    /// showing score, expected IPA, an approximated "you said" IPA
-    /// (via proportional mapping from the user's greedy decode), and a tip.
-    private static func makeFeedbackItems(
-        phoneScores: [PhoneScore],
-        userGreedy: [String]
-    ) -> [WordFeedbackItem] {
-        let total     = max(1, phoneScores.count)
-        let userCount = userGreedy.count
-
-        return phoneScores.enumerated().map { (idx, phone) in
-            let score  = phone.gopScore
-            let status: PronunciationStatus = score > 0.7 ? .good : score > 0.4 ? .needsWork : .incorrect
-
-            if status == .good {
-                return WordFeedbackItem(word: phone.symbol, status: .good, content: .good)
-            }
-
-            // Proportional index into the user's greedy sequence
-            let userIdx  = userCount > 0
-                ? min(Int(Float(idx) / Float(total) * Float(userCount)), userCount - 1)
-                : -1
-            let youSaid  = userIdx >= 0 ? "/\(userGreedy[userIdx])/" : "—"
-
-            return WordFeedbackItem(
-                word: phone.symbol,
-                status: status,
-                content: .needsReview(
-                    score: Int(score * 100),
-                    youSaidIPA: youSaid,
-                    expectedIPA: "/\(phone.symbol)/",
-                    tip: tipForPhoneme(phone.symbol)
-                )
-            )
-        }
     }
 
     /// Generic pronunciation tip based on phoneme class.
@@ -201,69 +174,5 @@ final class PronunciationScoringService: ObservableObject {
         return "Listen to the baseline carefully and try to match this sound precisely."
     }
 
-    // MARK: - Audio loading (adapted from friend's AudioService.loadAudio)
 
-    /// Load any audio file (WAV, M4A, etc.), resample to 16 kHz mono,
-    /// and apply zero-mean / unit-variance normalization — the exact
-    /// preprocessing `wav2vec2-xlsr-53-espeak-cv-ft` expects.
-    private static func loadAudioForWav2Vec2(from url: URL) throws -> MLMultiArray {
-        let file = try AVAudioFile(forReading: url)
-        let srcFormat = file.processingFormat
-        let frameCount = AVAudioFrameCount(file.length)
-
-        guard let srcBuffer = AVAudioPCMBuffer(pcmFormat: srcFormat, frameCapacity: frameCount) else {
-            throw PronunciationScoringError.audioLoadFailed
-        }
-        try file.read(into: srcBuffer)
-
-        // Target: 16 kHz mono float32
-        let targetSampleRate: Double = 16_000
-        let targetFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: targetSampleRate,
-            channels: 1,
-            interleaved: false
-        )!
-
-        let finalBuffer: AVAudioPCMBuffer
-        if srcFormat.sampleRate != targetSampleRate || srcFormat.channelCount != 1 {
-            guard let converter = AVAudioConverter(from: srcFormat, to: targetFormat) else {
-                throw PronunciationScoringError.audioLoadFailed
-            }
-            let dstCapacity = AVAudioFrameCount(
-                Double(srcBuffer.frameLength) * targetSampleRate / srcFormat.sampleRate
-            ) + 1024
-            guard let dstBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: dstCapacity) else {
-                throw PronunciationScoringError.audioLoadFailed
-            }
-            var inputConsumed = false
-            var conversionError: NSError?
-            converter.convert(to: dstBuffer, error: &conversionError) { _, outStatus in
-                if inputConsumed { outStatus.pointee = .endOfStream; return nil }
-                inputConsumed = true
-                outStatus.pointee = .haveData
-                return srcBuffer
-            }
-            if let conversionError { throw conversionError }
-            finalBuffer = dstBuffer
-        } else {
-            finalBuffer = srcBuffer
-        }
-
-        let frameLength = Int(finalBuffer.frameLength)
-        guard let channelData = finalBuffer.floatChannelData?[0] else {
-            throw PronunciationScoringError.audioLoadFailed
-        }
-
-        let shape = [1, NSNumber(value: frameLength)]
-        let multiArray = try MLMultiArray(shape: shape, dataType: .float32)
-        let ptr = UnsafeMutablePointer<Float>(OpaquePointer(multiArray.dataPointer))
-
-        // Zero-mean, unit-variance normalisation (what Wav2Vec2 expects)
-        var mean: Float = 0.0
-        var stdDev: Float = 0.0
-        vDSP_normalize(channelData, 1, ptr, 1, &mean, &stdDev, vDSP_Length(frameLength))
-
-        return multiArray
-    }
 }

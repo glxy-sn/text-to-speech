@@ -38,7 +38,8 @@ final class PracticeViewModel: ObservableObject {
 
     // MARK: - Practice data
 
-    @Published var practiceText: String = "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of a long round arch, with its path high above, and its two ends apparently beyond the horizon.There is, according to legend, a boiling pot of gold at one end.People look, but no one ever finds it"
+    @Published var practiceText: String = "Practice makes perfect. 孰能生巧."
+    
     @Published private(set) var recordingStartedAt: Date?
     @Published private(set) var recordingDuration: Int = 0
     @Published private(set) var recordedAudioURL: URL?
@@ -104,16 +105,13 @@ final class PracticeViewModel: ObservableObject {
     func confirmVoiceSelection() { flowStep = .generating }
 
     func generateCorrection(
-        ttsService: QwenTTSService,
         scoringService: PronunciationScoringService,
         voice: VoiceProfile?
     ) async {
         guard flowStep == .generating else { return }
 
         guard let voice,
-              let audioURL = voice.referenceAudioURL,
-              let transcript = voice.referenceTranscript,
-              !transcript.isEmpty else {
+              let audioURL = voice.referenceAudioURL else {
             await MainActor.run {
                 self.generationError = "This voice doesn't have a usable recording yet. Create or pick a different voice in the Voices tab."
             }
@@ -123,12 +121,14 @@ final class PracticeViewModel: ObservableObject {
         do {
             await MainActor.run { self.generatingPhase = .tts }
 
-            let ttsURL = try await ttsService.generateSpeech(
+            let ttsService = QwenTTSService.shared
+            let (ttsURL, _, _) = try await ttsService.generateAudio(
                 text: practiceText,
                 referenceAudioURL: audioURL,
-                referenceTranscript: transcript,
-                temperature: voice.appliedTemperature,
-                repetitionPenalty: voice.appliedRepetitionPenalty
+                referenceTranscript: voice.referenceTranscript,
+                language: "Auto",
+                speed: 1.0,
+                refLength: .long
             )
             await MainActor.run { self.correctedAudioURL = ttsURL }
 

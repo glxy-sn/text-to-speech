@@ -54,7 +54,7 @@ struct CreateVoiceReferenceFlowView: View {
             } message: {
                 Text("Pronunciation Coach needs microphone access to record your voice. You can enable it in System Settings → Privacy & Security → Microphone.")
             }
-            .onChange(of: scenePhase) { newPhase in
+            .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active { viewModel.refreshMicPermission() }
             }
             .fileImporter(
@@ -77,7 +77,6 @@ struct CreateVoiceReferenceFlowView: View {
         switch viewModel.step {
         case .intro:
             VoiceRefIntroStepView(
-                script: viewModel.script,
                 onUploadAudio: { isShowingFilePicker = true }
             ) {
                 viewModel.startRecording()
@@ -88,7 +87,8 @@ struct CreateVoiceReferenceFlowView: View {
                 VoiceRefRecordingStepView(
                     script: viewModel.script,
                     startedAt: startedAt,
-                    isCapturingAudio: viewModel.isActuallyRecording
+                    isCapturingAudio: viewModel.isActuallyRecording,
+                    audioLevels: viewModel.audioRecorder.audioLevels
                 ) {
                     viewModel.finishRecording()
                 }
@@ -102,6 +102,7 @@ struct CreateVoiceReferenceFlowView: View {
                 script: viewModel.script,
                 durationSeconds: viewModel.recordingDuration,
                 isPlaying: viewModel.isPlayingRecording,
+                levels: viewModel.audioPlayer.currentLevels,
                 onPlay: { viewModel.playRecording() },
                 onReRecord: { viewModel.reRecord() },
                 onNext: { viewModel.proceedToNaming() }

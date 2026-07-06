@@ -41,9 +41,6 @@ final class VoiceDetailViewModel: ObservableObject {
 
     private var voiceBinding: Binding<VoiceProfile>?
 
-    /// Fixed sentence used for every "Generate Voice" sample — taken from
-    /// the enrollment script so the voice cloning context is always valid.
-    private static let sampleText = "The rainbow is a division of white light into many beautiful colors."
 
     /// Must be called once before any other method — wires the ViewModel
     /// to the specific voice it manages.
@@ -62,10 +59,7 @@ final class VoiceDetailViewModel: ObservableObject {
     /// `temperature`/`repetitionPenalty` to their `applied*` counterparts
     /// so `isOutdated` resets. On failure, sets `generationError` so the
     /// View can surface it (alert, inline banner, etc.).
-    ///
-    /// `ttsService` is passed in by the View (not stored here) —
-    /// see the type-level doc comment for why.
-    func generateVoice(using ttsService: QwenTTSService) {
+    func generateVoice() {
         guard let binding = voiceBinding else { return }
 
         guard binding.wrappedValue.hasUsableReference else {
@@ -85,12 +79,15 @@ final class VoiceDetailViewModel: ObservableObject {
 
         Task { @MainActor in
             do {
-                let sampleURL = try await ttsService.generateSpeech(
-                    text: Self.sampleText,
+                let text = "Hello world! This is \(binding.wrappedValue.name) speaking. 你好世界！这是 \(binding.wrappedValue.name)."
+                let ttsService = QwenTTSService.shared
+                let (sampleURL, _, _) = try await ttsService.generateAudio(
+                    text: text,
                     referenceAudioURL: refAudioURL,
                     referenceTranscript: refTranscript,
-                    temperature: temperature,
-                    repetitionPenalty: repetitionPenalty
+                    language: "Auto",
+                    speed: 1.0,
+                    refLength: .long
                 )
                 // Commit both the generated sample and the settings that
                 // produced it — `isOutdated` clears when these match.

@@ -21,6 +21,7 @@ struct PlaybackTranscriptCard: View {
     let durationLabel: String
     let footnote: String?
     var trailingAccessory: (() -> AnyView)? = nil
+    var levels: [Float] = Array(repeating: 0.1, count: 60)
     var isPlaying: Bool = false
     var onPlay: () -> Void = {}
 
@@ -58,7 +59,11 @@ struct PlaybackTranscriptCard: View {
                 WordFlowText(words: words, mode: mode)
             }
 
-            AnimatedWaveformView(barCount: 60, isAnimating: isPlaying)
+            if isPlaying {
+                WaveformView(levels: levels)
+            } else {
+                Spacer()
+            }
 
             if let footnote {
                 HStack(spacing: 6) {

@@ -35,7 +35,7 @@ import Combine
 /// concurrency checking (Swift 6). Published properties are only ever
 /// written from the main actor in practice (the permission callback hops
 /// back via `Task { @MainActor in ... }`).
-final class AudioRecorderService: NSObject, ObservableObject {
+final class AudioRecorderService: NSObject, ObservableObject, @unchecked Sendable {
     enum PermissionStatus {
         case notDetermined
         case authorized
@@ -44,9 +44,11 @@ final class AudioRecorderService: NSObject, ObservableObject {
 
     @Published private(set) var isRecording = false
     @Published private(set) var permissionStatus: PermissionStatus = .notDetermined
+    @Published private(set) var audioLevels: [Float] = Array(repeating: 0.0, count: 36)
 
     private var recorder: AVAudioRecorder?
     private(set) var recordingURL: URL?
+    private var meterTimer: Timer?
 
     /// Re-checks live authorization status without attempting to record.
     /// Useful when the app's window becomes active again — e.g. the user
@@ -80,7 +82,7 @@ final class AudioRecorderService: NSObject, ObservableObject {
         case .notDetermined:
             print("AudioRecorderService: authorizationStatus = notDetermined — requesting access")
             AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     guard let self else { return }
                     print("AudioRecorderService: requestAccess completed — granted = \(granted)")
                     self.permissionStatus = granted ? .authorized : .denied
@@ -119,6 +121,7 @@ final class AudioRecorderService: NSObject, ObservableObject {
         do {
             let recorder = try AVAudioRecorder(url: url, settings: settings)
             recorder.delegate = self
+            recorder.isMeteringEnabled = true
             guard recorder.record() else {
                 // If this prints, TCC permission is fine — this is a
                 // device/sandbox-level failure instead (e.g. missing the
@@ -130,6 +133,14 @@ final class AudioRecorderService: NSObject, ObservableObject {
             self.recordingURL = url
             self.isRecording = true
             print("AudioRecorderService: recording started → \(url.path)")
+            
+            // Start meter polling timer
+            DispatchQueue.main.async {
+                self.audioLevels = Array(repeating: 0.0, count: 36)
+                self.meterTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+                    self?.updateMeters()
+                }
+            }
         } catch {
             // Same as above — reaching here means TCC said yes, but the
             // recorder itself couldn't be created. Almost always a
@@ -147,6 +158,8 @@ final class AudioRecorderService: NSObject, ObservableObject {
             isRecording = false
             return nil
         }
+        meterTimer?.invalidate()
+        meterTimer = nil
         recorder.stop()
         self.recorder = nil
         isRecording = false
@@ -162,6 +175,8 @@ final class AudioRecorderService: NSObject, ObservableObject {
     /// Stops (if needed) and deletes the temp file — used when the user
     /// discards a take to re-record, or abandons the flow entirely.
     func discardRecording() {
+        meterTimer?.invalidate()
+        meterTimer = nil
         recorder?.stop()
         recorder = nil
         isRecording = false
@@ -169,6 +184,19 @@ final class AudioRecorderService: NSObject, ObservableObject {
             try? FileManager.default.removeItem(at: url)
         }
         recordingURL = nil
+    }
+
+    private func updateMeters() {
+        guard let recorder = recorder, recorder.isRecording else { return }
+        recorder.updateMeters()
+        let power = recorder.averagePower(forChannel: 0)
+        
+        // Convert -60...0 dB to 0.0...1.0
+        let minDb: Float = -60.0
+        let normalized = max(0.0, (power - minDb) / (-minDb))
+        
+        audioLevels.removeFirst()
+        audioLevels.append(normalized)
     }
 }
 

@@ -84,7 +84,7 @@ struct VoiceProfile: Identifiable {
     /// Whether this profile has everything `QwenTTSService` needs to
     /// actually clone this voice, as opposed to just being display data.
     var hasUsableReference: Bool {
-        referenceAudioURL != nil && !(referenceTranscript ?? "").isEmpty
+        referenceAudioURL != nil
     }
 }
 
@@ -106,7 +106,143 @@ struct SampleVoice: Identifiable {
 // MARK: - Sample data
 
 extension Array where Element == VoiceProfile {
-    static let sampleMyVoices: [VoiceProfile] = []
+    static let sampleMyVoices: [VoiceProfile] = [
+        VoiceProfile(
+            name: "Dewa",
+            isDefault: false,
+            language: "Indonesian",
+            createdDate: "Prepackaged",
+            recordingLength: "—",
+            sampleSize: "—",
+            temperature: 0.7,
+            repetitionPenalty: 1.0,
+            referenceAudioURL: Bundle.main.url(forResource: "dewa", withExtension: "wav"),
+            referenceTranscript: "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of a long round arc",
+            sampleAudioURL: nil,
+            appliedTemperature: 0.7,
+            appliedRepetitionPenalty: 1.0
+        ),
+        VoiceProfile(
+            name: "Gagaz",
+            isDefault: false,
+            language: "Indonesian",
+            createdDate: "Prepackaged",
+            recordingLength: "—",
+            sampleSize: "—",
+            temperature: 0.7,
+            repetitionPenalty: 1.0,
+            referenceAudioURL: Bundle.main.url(forResource: "gagaz", withExtension: "wav"),
+            referenceTranscript: "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of a long round arc, with its",
+            sampleAudioURL: nil,
+            appliedTemperature: 0.7,
+            appliedRepetitionPenalty: 1.0
+        ),
+        VoiceProfile(
+            name: "Kak Anggi",
+            isDefault: false,
+            language: "Indonesian",
+            createdDate: "Prepackaged",
+            recordingLength: "—",
+            sampleSize: "—",
+            temperature: 0.7,
+            repetitionPenalty: 1.0,
+            referenceAudioURL: Bundle.main.url(forResource: "kak_anggi", withExtension: "wav"),
+            referenceTranscript: "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors.",
+            sampleAudioURL: nil,
+            appliedTemperature: 0.7,
+            appliedRepetitionPenalty: 1.0
+        ),
+        VoiceProfile(
+            name: "Kak Gemala",
+            isDefault: false,
+            language: "Indonesian",
+            createdDate: "Prepackaged",
+            recordingLength: "—",
+            sampleSize: "—",
+            temperature: 0.7,
+            repetitionPenalty: 1.0,
+            referenceAudioURL: Bundle.main.url(forResource: "kak_gemala", withExtension: "wav"),
+            referenceTranscript: "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take",
+            sampleAudioURL: nil,
+            appliedTemperature: 0.7,
+            appliedRepetitionPenalty: 1.0
+        ),
+        VoiceProfile(
+            name: "Kak Tere",
+            isDefault: false,
+            language: "Indonesian",
+            createdDate: "Prepackaged",
+            recordingLength: "—",
+            sampleSize: "—",
+            temperature: 0.7,
+            repetitionPenalty: 1.0,
+            referenceAudioURL: Bundle.main.url(forResource: "kak_tere", withExtension: "wav"),
+            referenceTranscript: "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of",
+            sampleAudioURL: nil,
+            appliedTemperature: 0.7,
+            appliedRepetitionPenalty: 1.0
+        ),
+        VoiceProfile(
+            name: "Ko Davin",
+            isDefault: false,
+            language: "Indonesian",
+            createdDate: "Prepackaged",
+            recordingLength: "—",
+            sampleSize: "—",
+            temperature: 0.7,
+            repetitionPenalty: 1.0,
+            referenceAudioURL: Bundle.main.url(forResource: "ko_davin", withExtension: "wav"),
+            referenceTranscript: "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of",
+            sampleAudioURL: nil,
+            appliedTemperature: 0.7,
+            appliedRepetitionPenalty: 1.0
+        ),
+        VoiceProfile(
+            name: "Nicholas",
+            isDefault: false,
+            language: "Indonesian",
+            createdDate: "Prepackaged",
+            recordingLength: "—",
+            sampleSize: "—",
+            temperature: 0.7,
+            repetitionPenalty: 1.0,
+            referenceAudioURL: Bundle.main.url(forResource: "nicholas", withExtension: "wav"),
+            referenceTranscript: "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. This takes the shape of a long round arch with its path high up.",
+            sampleAudioURL: nil,
+            appliedTemperature: 0.7,
+            appliedRepetitionPenalty: 1.0
+        ),
+        VoiceProfile(
+            name: "Savio",
+            isDefault: true,
+            language: "Indonesian",
+            createdDate: "Prepackaged",
+            recordingLength: "—",
+            sampleSize: "—",
+            temperature: 0.7,
+            repetitionPenalty: 1.0,
+            referenceAudioURL: Bundle.main.url(forResource: "savio", withExtension: "wav"),
+            referenceTranscript: "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of a long round arc, with its path high",
+            sampleAudioURL: nil,
+            appliedTemperature: 0.7,
+            appliedRepetitionPenalty: 1.0
+        ),
+        VoiceProfile(
+            name: "Tiara",
+            isDefault: false,
+            language: "Indonesian",
+            createdDate: "Prepackaged",
+            recordingLength: "—",
+            sampleSize: "—",
+            temperature: 0.7,
+            repetitionPenalty: 1.0,
+            referenceAudioURL: Bundle.main.url(forResource: "tiara", withExtension: "wav"),
+            referenceTranscript: "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of a long round arc,",
+            sampleAudioURL: nil,
+            appliedTemperature: 0.7,
+            appliedRepetitionPenalty: 1.0
+        )
+    ]
 }
 
 extension VoiceProfile {

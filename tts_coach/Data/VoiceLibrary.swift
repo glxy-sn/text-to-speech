@@ -61,4 +61,5 @@ final class VoiceLibraryStore: ObservableObject {
         voices.append(profile)
         return profile
     }
+
 }

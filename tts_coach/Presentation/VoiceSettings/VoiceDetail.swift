@@ -20,7 +20,6 @@ struct VoiceDetailPanel: View {
 
     @StateObject private var viewModel = VoiceDetailViewModel()
     @StateObject private var audioPlayer = AudioPlayerService()
-    @EnvironmentObject private var ttsService: QwenTTSService
 
     @State private var isShowingDeleteConfirmation = false
 
@@ -30,24 +29,44 @@ struct VoiceDetailPanel: View {
                 VoiceDetailHeaderView(voice: $voice)
                 Divider()
                 VoiceSampleSection(
-                    durationLabel: sampleDurationLabel,
-                    hasAudio: voice.sampleAudioURL != nil,
-                    isPlaying: audioPlayer.isPlaying,
-                    isOutdated: voice.isOutdated,
-                    isGenerating: viewModel.isGenerating,
+                    title: "Original Recording",
+                    durationLabel: originalDurationLabel,
+                    hasAudio: voice.referenceAudioURL != nil,
+                    isPlaying: audioPlayer.isPlaying && audioPlayer.currentURL == voice.referenceAudioURL,
+                    isOutdated: false,
+                    isGenerating: false,
+                    levels: audioPlayer.currentURL == voice.referenceAudioURL ? audioPlayer.currentLevels : Array(repeating: 0.1, count: 50),
+                    captionTextOverride: "This is the original recording used to create the voice.",
                     onPlay: {
-                        if let url = voice.sampleAudioURL {
+                        if let url = voice.referenceAudioURL {
                             audioPlayer.play(url: url)
                         }
                     }
                 )
+                if voice.sampleAudioURL != nil || viewModel.isGenerating {
+                    Divider()
+                    VoiceSampleSection(
+                        title: "Generated Sample",
+                        durationLabel: sampleDurationLabel,
+                        hasAudio: voice.sampleAudioURL != nil,
+                        isPlaying: audioPlayer.isPlaying && audioPlayer.currentURL == voice.sampleAudioURL,
+                        isOutdated: voice.isOutdated,
+                        isGenerating: viewModel.isGenerating,
+                        levels: audioPlayer.currentURL == voice.sampleAudioURL ? audioPlayer.currentLevels : Array(repeating: 0.1, count: 50),
+                        onPlay: {
+                            if let url = voice.sampleAudioURL {
+                                audioPlayer.play(url: url)
+                            }
+                        }
+                    )
+                }
                 Divider()
                 VoiceSettingsSlidersSection(
                     voice: $voice,
                     isOutdated: voice.isOutdated,
                     isGenerating: viewModel.isGenerating,
                     onResetToDefault: { viewModel.resetToDefault() },
-                    onGenerateVoice: { viewModel.generateVoice(using: ttsService) }
+                    onGenerateVoice: { viewModel.generateVoice() }
                 )
                 Divider()
 
@@ -93,10 +112,14 @@ struct VoiceDetailPanel: View {
         .onAppear {
             viewModel.configure(voice: $voice)
         }
-        .onChange(of: voice.id) { _ in
+        .onChange(of: voice.id) { _, _ in
             viewModel.configure(voice: $voice)
             audioPlayer.stop()
         }
+    }
+
+    private var originalDurationLabel: String {
+        voice.referenceAudioURL != nil ? "0:00 / —" : "—"
     }
 
     private var sampleDurationLabel: String {
@@ -112,7 +135,7 @@ private struct PreviewWrapper: View {
     @State private var voice = VoiceProfile.preview
     var body: some View {
         VoiceDetailPanel(voice: $voice)
-            .environmentObject(QwenTTSService())
+            .environmentObject(VoiceLibraryStore())
             .frame(width: 600, height: 800)
     }
 }

@@ -12,7 +12,6 @@ import SwiftUI
 /// Revision: added `onUploadAudio` callback and "Upload Audio File"
 /// button as an alternative to recording live.
 struct VoiceRefIntroStepView: View {
-    let script: String
     var onUploadAudio: () -> Void = {}
     var onStart: () -> Void
 
@@ -28,15 +27,13 @@ struct VoiceRefIntroStepView: View {
             }
 
             VStack(spacing: 6) {
-                Text("Please read aloud")
+                Text("New Voice")
                     .font(.title3.weight(.semibold))
-                Text("Read the following text with your natural voice.")
+                Text("Read the upcoming paragraph with your natural voice.\n Maintain a relaxed pace and give ample room in between each word.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-
-            ScriptTextBox(text: script)
 
             // Primary CTA — record live
             Button(action: onStart) {
@@ -79,7 +76,6 @@ struct VoiceRefIntroStepView: View {
 
 #Preview {
     VoiceRefIntroStepView(
-        script: "Lorem ipsum dolor sit amet consectetur adipiscing elit.",
         onStart: {}
     )
     .padding(28)

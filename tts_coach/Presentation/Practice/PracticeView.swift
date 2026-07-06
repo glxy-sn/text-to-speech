@@ -10,7 +10,6 @@ import Foundation
 
 struct PracticeFlowView: View {
     @EnvironmentObject private var voiceLibrary: VoiceLibraryStore
-    @EnvironmentObject private var ttsService: QwenTTSService
     @EnvironmentObject private var scoringService: PronunciationScoringService
     @EnvironmentObject private var historyStore: HistoryStore
     @StateObject private var viewModel = PracticeViewModel()
@@ -33,7 +32,7 @@ struct PracticeFlowView: View {
             }
         }
         // On the Group so it's always active — see PracticeView history-save fix.
-        .onChange(of: viewModel.flowStep) { step in
+        .onChange(of: viewModel.flowStep) { _, step in
             guard case .results = step else { return }
             let voiceName = voiceLibrary.voices
                 .first { $0.id == viewModel.selectedVoiceID }?.name
@@ -74,7 +73,7 @@ struct PracticeFlowView: View {
         } message: {
             Text(viewModel.generationError ?? "")
         }
-        .onChange(of: scenePhase) { newPhase in
+        .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active { viewModel.refreshMicPermission() }
         }
     }
@@ -111,12 +110,7 @@ struct PracticeFlowView: View {
         case .scoring:
             return "Analyzing your pronunciation against the baseline…"
         case .tts:
-            switch ttsService.state {
-            case .loadingModel:
-                return "Loading the voice model — this can take a while the first time (it's downloading)."
-            default:
-                return "Generating correction in your voice…"
-            }
+            return "Generating correction in your voice…"
         }
     }
 
@@ -139,7 +133,8 @@ struct PracticeFlowView: View {
                     practiceText: viewModel.practiceText,
                     startedAt: startedAt,
                     maxDurationSeconds: viewModel.maxRecordingSeconds,
-                    isCapturingAudio: viewModel.isActuallyRecording
+                    isCapturingAudio: viewModel.isActuallyRecording,
+                    audioLevels: viewModel.audioRecorder.audioLevels
                 ) {
                     viewModel.finishRecording(defaultVoiceID: voiceLibrary.defaultVoice?.id)
                 }
@@ -160,7 +155,6 @@ struct PracticeFlowView: View {
             .task(id: viewModel.generationAttempt) {
                 let voice = voiceLibrary.voices.first { $0.id == viewModel.selectedVoiceID }
                 await viewModel.generateCorrection(
-                    ttsService: ttsService,
                     scoringService: scoringService,
                     voice: voice
                 )
@@ -175,7 +169,6 @@ struct PracticeFlowView: View {
 #Preview {
     PracticeFlowView()
         .environmentObject(VoiceLibraryStore())
-        .environmentObject(QwenTTSService())
         .environmentObject(PronunciationScoringService())
         .environmentObject(HistoryStore())
         .frame(width: 900, height: 700)

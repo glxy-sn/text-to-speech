@@ -12,17 +12,20 @@ import SwiftUI
 /// revision, and real playback (per a later revision) via whatever
 /// `AudioPlayerService` the caller wires up.
 struct VoiceSampleSection: View {
+    var title: String = "Voice Sample"
     let durationLabel: String
     var hasAudio: Bool = true
     var isPlaying: Bool = false
     var isOutdated: Bool = false
     var isGenerating: Bool = false
+    var levels: [Float] = Array(repeating: 0.1, count: 50)
+    var captionTextOverride: String? = nil
     var onPlay: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text("Voice Sample").font(.headline)
+                Text(title).font(.headline)
                 if isOutdated && !isGenerating {
                     Text("Outdated")
                         .font(.caption2.weight(.medium))
@@ -47,6 +50,7 @@ struct VoiceSampleSection: View {
     }
 
     private var captionText: String {
+        if let captionTextOverride { return captionTextOverride }
         if isGenerating {
             return "Regenerating the voice sample with the latest settings..."
         } else if !hasAudio {
@@ -68,7 +72,11 @@ struct VoiceSampleSection: View {
             .buttonStyle(.plain)
             .disabled(!hasAudio)
 
-            AnimatedWaveformView(barCount: 50, isAnimating: isPlaying)
+            if isPlaying {
+                WaveformView(levels: levels)
+            } else {
+                Spacer()
+            }
 
             Text(durationLabel)
                 .font(.caption)

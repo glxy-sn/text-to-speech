@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Foundation
+import Combine
 
 /// Step 2 of 3 — live "Recording..." state with a counting timer.
 /// The timer is derived from `startedAt` via `TimelineView` rather than a
@@ -22,14 +23,52 @@ struct VoiceRefRecordingStepView: View {
     let script: String
     let startedAt: Date
     var isCapturingAudio: Bool = true
+    var audioLevels: [Float] = Array(repeating: 0.0, count: 36)
     var onStop: () -> Void
+
+    @State private var userScrolled = false
+    @State private var elapsedSeconds: Int = 0
+
+    private var sentences: [String] {
+        var text = script
+        text = text.replacingOccurrences(of: ", ", with: ",|")
+        text = text.replacingOccurrences(of: ". ", with: ".|")
+        text = text.replacingOccurrences(of: "; ", with: ";|")
+        text = text.replacingOccurrences(of: ": ", with: ":|")
+        
+        return text.components(separatedBy: "|")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+    
+    private func sentenceIndex(for elapsed: Int) -> Int {
+        let wordsPerSecond = 2.16
+        var cumulativeTime = 0.0
+        for (i, sentence) in sentences.enumerated() {
+            let wordCount = sentence.split(separator: " ").count
+            let duration = Double(wordCount) / wordsPerSecond
+            cumulativeTime += duration
+            if Double(elapsed) < cumulativeTime {
+                return i
+            }
+        }
+        return sentences.count - 1
+    }
 
     var body: some View {
         VStack(spacing: 18) {
             Text("Please read aloud")
                 .font(.title3.weight(.semibold))
 
-            ScriptTextBox(text: script)
+            TeleprompterDisplayView(
+                sentences: sentences,
+                currentSentenceIndex: sentenceIndex(for: elapsedSeconds),
+                shouldAutoScroll: !userScrolled,
+                onUserScroll: { userScrolled = true }
+            )
+            .frame(height: 200)
+            .background(AppTheme.accentSoft)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             HStack(spacing: 6) {
                 Circle()
@@ -46,7 +85,7 @@ struct VoiceRefRecordingStepView: View {
                     .font(.system(size: 32, weight: .semibold, design: .monospaced))
             }
 
-            AnimatedWaveformView()
+            WaveformView(levels: audioLevels.isEmpty ? Array(repeating: 0.0, count: 36) : audioLevels)
 
             if !isCapturingAudio {
                 capturingWarningBanner
@@ -59,6 +98,9 @@ struct VoiceRefRecordingStepView: View {
                     .background(Circle().fill(Color.primary.opacity(0.06)))
             }
             .buttonStyle(.plain)
+        }
+        .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { date in
+            elapsedSeconds = max(0, Int(date.timeIntervalSince(startedAt)))
         }
     }
 

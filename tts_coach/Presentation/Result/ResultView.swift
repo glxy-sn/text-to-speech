@@ -54,6 +54,7 @@ struct PracticeResultsView: View {
                     mode: .original,        // coloured chips where score < good
                     durationLabel: "0:12",
                     footnote: nil,
+                    levels: recordingPlayer.currentLevels,
                     isPlaying: recordingPlayer.isPlaying,
                     onPlay: {
                         if let recordingURL { recordingPlayer.play(url: recordingURL) }
@@ -67,18 +68,30 @@ struct PracticeResultsView: View {
                     mode: .corrected,       // all words shown in green (this is the reference)
                     durationLabel: "0:12",
                     footnote: "This is how it should sound with your voice and correct pronunciation.",
+                    levels: correctedPlayer.currentLevels,
                     isPlaying: correctedPlayer.isPlaying,
                     onPlay: {
                         if let correctedAudioURL { correctedPlayer.play(url: correctedAudioURL) }
                     }
                 )
 
-                // Phoneme-level feedback — only shown when scoring produced real data.
-                // Cards that come from `PronunciationScoringService` are IPA symbols,
-                // not English words, so `WordFeedbackCard`'s "word" header displays
-                // the IPA phoneme (e.g. "ɹ", "eɪ"). This is intentional.
+                // Word-level feedback with nested phonemes
                 if !feedbackItems.isEmpty {
-                    WordFeedbackCarousel(items: feedbackItems)
+                    WordFeedbackCarousel(
+                        items: feedbackItems,
+                        onPlayUser: { wordItem in
+                            guard let recordingURL,
+                                  let start = wordItem.startTime,
+                                  let end = wordItem.endTime else { return }
+                            recordingPlayer.playSegment(url: recordingURL, startTime: start, endTime: end)
+                        },
+                        onPlayTTS: { wordItem in
+                            guard let correctedAudioURL,
+                                  let start = wordItem.ttsStartTime,
+                                  let end = wordItem.ttsEndTime else { return }
+                            correctedPlayer.playSegment(url: correctedAudioURL, startTime: start, endTime: end)
+                        }
+                    )
                 }
             }
             .padding(24)
