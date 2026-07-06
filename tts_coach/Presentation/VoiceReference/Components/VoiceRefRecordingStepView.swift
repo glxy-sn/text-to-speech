@@ -54,11 +54,8 @@ struct VoiceRefRecordingStepView: View {
     }
     
     private func updateActiveWordIndex() {
-        let wordsPerSecond = 2.16
-        let fallbackIndex = Int(Double(elapsedSeconds) * wordsPerSecond)
         let spokenWords = liveTranscription.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
-        
-        let proposedIndex = max(fallbackIndex, spokenWords.count)
+        let proposedIndex = spokenWords.count
         var newIndex = activeWordIndex
         
         if proposedIndex > activeWordIndex {
@@ -70,14 +67,28 @@ struct VoiceRefRecordingStepView: View {
         let totalWords = teleprompterData.last.map { $0.startWordIndex + $0.words.count } ?? 0
         newIndex = min(newIndex, max(0, totalWords - 1))
         
-        if newIndex != activeWordIndex {
-            activeWordIndex = newIndex
+        // Final block confidence check: only finish if we hear the end of the text
+        if newIndex >= totalWords - 1 && totalWords > 0 && !hasFinished {
+            let finalWords = teleprompterData.flatMap { $0.words }.suffix(5)
+                .map { $0.lowercased().trimmingCharacters(in: .punctuationCharacters) }
+                .filter { $0.count > 2 }
+                
+            let recentSpoken = spokenWords.suffix(15)
+                .map { $0.lowercased().trimmingCharacters(in: .punctuationCharacters) }
+            
+            let hearsFinalBlock = finalWords.isEmpty || finalWords.contains(where: { recentSpoken.contains($0) })
+            
+            if hearsFinalBlock {
+                hasFinished = true
+                onStop()
+            } else {
+                // Hold at the penultimate word until we hear the final block
+                newIndex = max(0, totalWords - 2)
+            }
         }
         
-        // Auto-stop when reaching the end
-        if newIndex >= totalWords - 1 && totalWords > 0 && !hasFinished {
-            hasFinished = true
-            onStop()
+        if newIndex != activeWordIndex {
+            activeWordIndex = newIndex
         }
     }
 
