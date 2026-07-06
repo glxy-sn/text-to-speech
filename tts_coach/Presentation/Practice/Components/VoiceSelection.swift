@@ -79,7 +79,6 @@ struct PracticeVoiceSelectionStepView: View {
                         Circle().fill(Color.orange).frame(width: 6, height: 6)
                     }
                 }
-                Text(voice.language).font(.caption).foregroundStyle(.secondary)
             }
 
             Spacer()

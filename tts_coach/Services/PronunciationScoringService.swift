@@ -77,10 +77,13 @@ final class PronunciationScoringService: ObservableObject {
         let targetPhonemesList = phonemesWithFrames.map { $0.symbol }
         guard !targetPhonemesList.isEmpty else { return .placeholder(for: practiceText) }
 
+        // Determine ASR Locale based on script contents
+        let asrLocale = practiceText.range(of: "\\p{Han}", options: .regularExpression) != nil ? "zh-CN" : "en-US"
+
         // Step 3: ASR Word Timings
         let asrTimings: [SpeechAlignmentService.WordTiming]
         do {
-            asrTimings = try await SpeechAlignmentService.getWordTimings(audioURL: normalizedTTSURL, localeIdentifier: "en-US")
+            asrTimings = try await SpeechAlignmentService.getWordTimings(audioURL: normalizedTTSURL, localeIdentifier: asrLocale)
         } catch {
             print("ASR failed: \(error), falling back")
             asrTimings = []
@@ -107,10 +110,10 @@ final class PronunciationScoringService: ObservableObject {
         )
 
         // Step 8: Extract ORIGINAL Audio Word Timings for UI Playback
-        let originalUserTimings = (try? await SpeechAlignmentService.getWordTimings(audioURL: userRecordingURL, localeIdentifier: "en-US")) ?? []
+        let originalUserTimings = (try? await SpeechAlignmentService.getWordTimings(audioURL: userRecordingURL, localeIdentifier: asrLocale)) ?? []
         let originalUserAligned = SpeechAlignmentService.alignTimingsToTarget(targetScript: practiceText, asrTimings: originalUserTimings)
 
-        let originalTTSTimings = (try? await SpeechAlignmentService.getWordTimings(audioURL: ttsAudioURL, localeIdentifier: "en-US")) ?? []
+        let originalTTSTimings = (try? await SpeechAlignmentService.getWordTimings(audioURL: ttsAudioURL, localeIdentifier: asrLocale)) ?? []
         let originalTTSAligned = SpeechAlignmentService.alignTimingsToTarget(targetScript: practiceText, asrTimings: originalTTSTimings)
 
         // Step 9: Map to UI models using our canonical alignments
